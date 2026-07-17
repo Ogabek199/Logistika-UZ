@@ -13,6 +13,8 @@ import {
 } from "@/lib/utils";
 import { useT } from "@/i18n";
 import { PasswordInput } from "@/components/ui/password-input";
+import { LoadingScreen } from "@/components/loading-screen";
+import { Spinner } from "@/components/ui/spinner";
 
 type DriverDetail = {
   fullName: string;
@@ -20,6 +22,7 @@ type DriverDetail = {
   vehicle: string | null;
   plateNumber: string | null;
   passportSeries: string | null;
+  telegramChatId: string | null;
 };
 
 export default function EditDriverPage() {
@@ -33,6 +36,7 @@ export default function EditDriverPage() {
     vehicle: "",
     plateNumber: "",
     passportSeries: "",
+    telegramChatId: "",
     password: "",
   });
   const [ready, setReady] = useState(false);
@@ -49,6 +53,7 @@ export default function EditDriverPage() {
           vehicle: d.vehicle || "",
           plateNumber: d.plateNumber || "",
           passportSeries: d.passportSeries || "",
+          telegramChatId: d.telegramChatId || "",
           password: "",
         });
         setReady(true);
@@ -67,6 +72,7 @@ export default function EditDriverPage() {
         vehicle: form.vehicle.trim(),
         plateNumber: form.plateNumber.trim(),
         passportSeries: form.passportSeries.trim(),
+        telegramChatId: form.telegramChatId.trim(),
       };
       if (form.password.trim()) body.password = form.password.trim();
       await api(`/admin/drivers/${params.id}`, {
@@ -93,7 +99,7 @@ export default function EditDriverPage() {
       </h2>
 
       {!ready && !error ? (
-        <p className="text-muted">{t("common.loading")}</p>
+        <LoadingScreen variant="panel" />
       ) : (
         <form
           onSubmit={onSubmit}
@@ -148,6 +154,16 @@ export default function EditDriverPage() {
               />
             </Field>
 
+            <Field icon={<Phone className="h-4 w-4" />} label={t("drivers.telegramChatIdManual")}>
+              <input
+                className="input-field"
+                placeholder={t("drivers.telegramChatIdPlaceholder")}
+                value={form.telegramChatId}
+                onChange={(e) => setForm((f) => ({ ...f, telegramChatId: e.target.value.replace(/\D/g, "") }))}
+              />
+              <p className="mt-1.5 text-xs text-muted">{t("drivers.telegramChatIdManualHint")}</p>
+            </Field>
+
             <Field icon={<KeyRound className="h-4 w-4" />} label={t("drivers.newPassword")}>
               <PasswordInput
                 minLength={4}
@@ -166,7 +182,14 @@ export default function EditDriverPage() {
               {t("common.cancel")}
             </Link>
             <button type="submit" disabled={loading} className="btn-primary !w-auto min-w-40 px-6">
-              {loading ? t("common.saving") : t("common.save")}
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size="sm" className="border-white/30 border-t-white" />
+                  {t("common.saving")}
+                </span>
+              ) : (
+                t("common.save")
+              )}
             </button>
           </div>
         </form>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,59 +16,87 @@ export type ActionItem = {
   divider?: boolean;
 };
 
+const MENU_WIDTH = 210;
+const VIEWPORT_PAD = 8;
+
 export function ActionMenu({
   items,
   label,
+  align = "end",
 }: {
   items: ActionItem[];
   label?: string;
+  align?: "start" | "end";
 }) {
+  const menuId = useId();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
-  const MENU_WIDTH = 210;
 
   function updateCoords() {
     const el = btnRef.current;
     if (!el) return;
+
     const rect = el.getBoundingClientRect();
-    const left = Math.max(8, rect.right - MENU_WIDTH);
-    const estHeight = items.length * 40 + 16;
+    const estHeight = items.reduce(
+      (h, item) => h + (item.divider ? 48 : 40),
+      16,
+    );
+
+    let left =
+      align === "end" ? rect.right - MENU_WIDTH : rect.left;
+    left = Math.max(
+      VIEWPORT_PAD,
+      Math.min(left, window.innerWidth - MENU_WIDTH - VIEWPORT_PAD),
+    );
+
     const spaceBelow = window.innerHeight - rect.bottom;
-    const openUp = spaceBelow < estHeight && rect.top > spaceBelow;
-    setCoords({
-      top: openUp ? rect.top - estHeight - 4 : rect.bottom + 6,
-      left,
-    });
+    const openUp = spaceBelow < estHeight + VIEWPORT_PAD;
+    let top = openUp ? rect.top - estHeight - 6 : rect.bottom + 6;
+    top = Math.max(
+      VIEWPORT_PAD,
+      Math.min(top, window.innerHeight - estHeight - VIEWPORT_PAD),
+    );
+
+    setCoords({ top, left });
   }
 
   useEffect(() => {
     if (!open) return;
+
     updateCoords();
-    const onScroll = () => setOpen(false);
-    const onResize = () => setOpen(false);
+    const raf = requestAnimationFrame(updateCoords);
+
     function onDoc(e: MouseEvent) {
       const target = e.target as Node;
       if (btnRef.current?.contains(target)) return;
-      const pop = document.getElementById("logistika-action-menu");
+      const pop = document.getElementById(menuId);
       if (pop?.contains(target)) return;
       setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    function onScroll() {
+      updateCoords();
+    }
+    function onResize() {
+      updateCoords();
+    }
+
     document.addEventListener("mousedown", onDoc);
     window.addEventListener("keydown", onKey);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onResize);
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("mousedown", onDoc);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, menuId]);
 
   const toneClass = (tone?: ActionItem["tone"]) =>
     tone === "danger"
@@ -83,8 +111,9 @@ export function ActionMenu({
         ref={btnRef}
         type="button"
         aria-label={label}
+        aria-expanded={open}
         onClick={() => {
-          updateCoords();
+          if (!open) updateCoords();
           setOpen((v) => !v);
         }}
         className={cn(
@@ -98,8 +127,8 @@ export function ActionMenu({
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
-              id="logistika-action-menu"
-              className="fixed z-[400] overflow-hidden rounded-2xl border border-line bg-white py-1.5 shadow-[0_24px_60px_rgba(7,21,37,0.22)]"
+              id={menuId}
+              className="fixed z-[600] overflow-hidden rounded-2xl border border-line bg-white py-1.5 shadow-[0_24px_60px_rgba(7,21,37,0.22)]"
               style={{ top: coords.top, left: coords.left, width: MENU_WIDTH }}
             >
               {items.map((item) => {

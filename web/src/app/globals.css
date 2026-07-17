@@ -94,6 +94,19 @@ h4 {
   }
 }
 
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+.loading-bar {
+  animation: loading-bar 1.15s ease-in-out infinite;
+}
+
 .animate-rise {
   animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -115,6 +128,92 @@ h4 {
 
 .bg-orb {
   animation: drift 14s ease-in-out infinite;
+}
+
+@keyframes not-found-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes not-found-dash {
+  to {
+    stroke-dashoffset: -120;
+  }
+}
+
+.not-found-code {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(126, 183, 242, 0.55) 48%,
+    rgba(200, 137, 26, 0.35) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: not-found-float 5.5s ease-in-out infinite;
+  filter: drop-shadow(0 24px 48px rgba(47, 127, 209, 0.22));
+}
+
+.not-found-route {
+  animation: not-found-dash 4s linear infinite;
+}
+
+@keyframes maintenance-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes maintenance-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes maintenance-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.92;
+  }
+}
+
+.maintenance-code {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 248, 230, 0.95) 0%,
+    rgba(240, 193, 90, 0.7) 45%,
+    rgba(200, 137, 26, 0.4) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 20px 40px rgba(200, 137, 26, 0.28));
+}
+
+.maintenance-ring {
+  animation: maintenance-spin 2.4s linear infinite;
+}
+
+.maintenance-bar {
+  animation: maintenance-bar 1.6s ease-in-out infinite;
+}
+
+.maintenance-pulse {
+  animation: maintenance-pulse 3s ease-in-out infinite;
 }
 
 .glass-panel {

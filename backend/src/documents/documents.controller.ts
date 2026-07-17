@@ -26,18 +26,25 @@ export class DocumentsController {
   constructor(private readonly docs: DocumentsService) {}
 
   @Get('putyovkalar')
-  putyovkas(@Query('q') q?: string) {
-    return this.docs.list('putyovka', q);
+  putyovkas(@Query('q') q?: string, @Query('filter') filter?: string) {
+    return this.docs.list('putyovka', q, filter);
   }
 
   @Post('putyovkalar')
-  createPutyovka(@Body() dto: CreateDocDto) {
-    return this.docs.create('putyovka', dto);
+  createPutyovka(
+    @Body() dto: CreateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.create('putyovka', dto, req.user.userId);
   }
 
   @Patch('putyovkalar/:id')
-  updatePutyovka(@Param('id') id: string, @Body() dto: UpdateDocDto) {
-    return this.docs.update('putyovka', id, dto);
+  updatePutyovka(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.update('putyovka', id, dto, req.user.userId);
   }
 
   @Delete('putyovkalar/:id')
@@ -46,18 +53,25 @@ export class DocumentsController {
   }
 
   @Get('tirlar')
-  tirs(@Query('q') q?: string) {
-    return this.docs.list('tir', q);
+  tirs(@Query('q') q?: string, @Query('filter') filter?: string) {
+    return this.docs.list('tir', q, filter);
   }
 
   @Post('tirlar')
-  createTir(@Body() dto: CreateDocDto) {
-    return this.docs.create('tir', dto);
+  createTir(
+    @Body() dto: CreateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.create('tir', dto, req.user.userId);
   }
 
   @Patch('tirlar/:id')
-  updateTir(@Param('id') id: string, @Body() dto: UpdateDocDto) {
-    return this.docs.update('tir', id, dto);
+  updateTir(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.update('tir', id, dto, req.user.userId);
   }
 
   @Delete('tirlar/:id')
@@ -66,18 +80,25 @@ export class DocumentsController {
   }
 
   @Get('dazvollar')
-  dazvols(@Query('q') q?: string) {
-    return this.docs.list('dazvol', q);
+  dazvols(@Query('q') q?: string, @Query('filter') filter?: string) {
+    return this.docs.list('dazvol', q, filter);
   }
 
   @Post('dazvollar')
-  createDazvol(@Body() dto: CreateDocDto) {
-    return this.docs.create('dazvol', dto);
+  createDazvol(
+    @Body() dto: CreateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.create('dazvol', dto, req.user.userId);
   }
 
   @Patch('dazvollar/:id')
-  updateDazvol(@Param('id') id: string, @Body() dto: UpdateDocDto) {
-    return this.docs.update('dazvol', id, dto);
+  updateDazvol(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.update('dazvol', id, dto, req.user.userId);
   }
 
   @Delete('dazvollar/:id')
@@ -86,18 +107,25 @@ export class DocumentsController {
   }
 
   @Get('litsenziyalar')
-  licenses(@Query('q') q?: string) {
-    return this.docs.list('license', q);
+  licenses(@Query('q') q?: string, @Query('filter') filter?: string) {
+    return this.docs.list('license', q, filter);
   }
 
   @Post('litsenziyalar')
-  createLicense(@Body() dto: CreateDocDto) {
-    return this.docs.create('license', dto);
+  createLicense(
+    @Body() dto: CreateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.create('license', dto, req.user.userId);
   }
 
   @Patch('litsenziyalar/:id')
-  updateLicense(@Param('id') id: string, @Body() dto: UpdateDocDto) {
-    return this.docs.update('license', id, dto);
+  updateLicense(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.update('license', id, dto, req.user.userId);
   }
 
   @Delete('litsenziyalar/:id')
@@ -106,18 +134,25 @@ export class DocumentsController {
   }
 
   @Get('ijara')
-  rentals(@Query('q') q?: string) {
-    return this.docs.list('rental', q);
+  rentals(@Query('q') q?: string, @Query('filter') filter?: string) {
+    return this.docs.list('rental', q, filter);
   }
 
   @Post('ijara')
-  createRental(@Body() dto: CreateDocDto) {
-    return this.docs.create('rental', dto);
+  createRental(
+    @Body() dto: CreateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.create('rental', dto, req.user.userId);
   }
 
   @Patch('ijara/:id')
-  updateRental(@Param('id') id: string, @Body() dto: UpdateDocDto) {
-    return this.docs.update('rental', id, dto);
+  updateRental(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.docs.update('rental', id, dto, req.user.userId);
   }
 
   @Delete('ijara/:id')

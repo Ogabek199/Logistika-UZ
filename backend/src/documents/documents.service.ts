@@ -20,18 +20,29 @@ function parseDate(v?: string | null) {
 export class DocumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(kind: DocKind, q?: string) {
+  async list(kind: DocKind, q?: string, filter?: string) {
     const items = await this.delegate(kind).findMany({
       orderBy: { createdAt: 'desc' },
       include: { driver: true },
     });
 
-    const mapped = items.map((item: any) => ({
+    let mapped = items.map((item: any) => ({
       ...item,
       debt: debt(item.price, item.paid),
       driverName: item.driver?.fullName,
       driverPhone: item.driver?.phone,
+      driverId: item.driver?.id,
+      driverVehicle: item.driver?.vehicle,
+      driverPlateNumber: item.driver?.plateNumber,
     }));
+
+    if (filter === 'active') {
+      mapped = mapped.filter((item: any) => item.status === 'ACTIVE');
+    } else if (filter === 'finished') {
+      mapped = mapped.filter((item: any) => item.status === 'FINISHED');
+    } else if (filter === 'debtor') {
+      mapped = mapped.filter((item: any) => item.debt > 0);
+    }
 
     if (!q?.trim()) return mapped;
     const s = q.toLowerCase();
@@ -40,68 +51,85 @@ export class DocumentsService {
     );
   }
 
-  async create(kind: DocKind, dto: CreateDocDto) {
+  async create(kind: DocKind, dto: CreateDocDto, adminId?: string) {
     const driver = await this.prisma.driver.findUnique({
       where: { id: dto.driverId },
     });
     if (!driver) throw new NotFoundException('Haydovchi topilmadi');
 
+    const paid = dto.paid ?? 0;
     const base = {
       driverId: dto.driverId,
       price: dto.price,
-      paid: dto.paid ?? 0,
+      paid,
       startDate: parseDate(dto.startDate),
       endDate: parseDate(dto.endDate),
       note: dto.note || null,
       status: dto.status || 'ACTIVE',
     };
 
-    if (kind === 'putyovka') {
-      return this.prisma.putyovka.create({
-        data: {
-          ...base,
-          trailerNo: dto.trailerNo || null,
-          code: dto.code || null,
-          months: dto.months ?? null,
-        },
-      });
-    }
-    if (kind === 'tir') {
-      return this.prisma.tir.create({
-        data: {
-          ...base,
-          tirNumber: dto.tirNumber || null,
-          months: dto.months ?? null,
-        },
-      });
-    }
-    if (kind === 'dazvol') {
-      return this.prisma.dazvol.create({
-        data: {
-          ...base,
-          country: dto.country || null,
-          dazvolNumber: dto.dazvolNumber || null,
-        },
-      });
-    }
-    if (kind === 'license') {
-      return this.prisma.license.create({
-        data: {
-          ...base,
-          licenseNumber: dto.licenseNumber || null,
-        },
-      });
-    }
-    return this.prisma.rental.create({
-      data: {
-        ...base,
-        address: dto.address || null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      let created: { id: string; driverId: string; paid: number };
+      if (kind === 'putyovka') {
+        created = await tx.putyovka.create({
+          data: {
+            ...base,
+            trailerNo: dto.trailerNo || null,
+            code: dto.code || null,
+            months: dto.months ?? null,
+          },
+        });
+      } else if (kind === 'tir') {
+        created = await tx.tir.create({
+          data: {
+            ...base,
+            tirNumber: dto.tirNumber || null,
+            months: dto.months ?? null,
+          },
+        });
+      } else if (kind === 'dazvol') {
+        created = await tx.dazvol.create({
+          data: {
+            ...base,
+            country: dto.country || null,
+            dazvolNumber: dto.dazvolNumber || null,
+          },
+        });
+      } else if (kind === 'license') {
+        created = await tx.license.create({
+          data: {
+            ...base,
+            licenseNumber: dto.licenseNumber || null,
+          },
+        });
+      } else {
+        created = await tx.rental.create({
+          data: {
+            ...base,
+            address: dto.address || null,
+          },
+        });
+      }
+
+      if (paid > 0) {
+        await tx.payment.create({
+          data: {
+            driverId: created.driverId,
+            adminId: adminId || null,
+            documentKind: kind,
+            documentId: created.id,
+            amount: paid,
+            note: dto.note || null,
+          },
+        });
+      }
+
+      return created;
     });
   }
 
-  async update(kind: DocKind, id: string, dto: UpdateDocDto) {
-    await this.ensure(kind, id);
+  async update(kind: DocKind, id: string, dto: UpdateDocDto, adminId?: string) {
+    const existing = await this.ensure(kind, id);
     const data: Record<string, unknown> = {};
     if (dto.driverId !== undefined) data.driverId = dto.driverId;
     if (dto.price !== undefined) data.price = dto.price;
@@ -119,7 +147,30 @@ export class DocumentsService {
     if (dto.licenseNumber !== undefined) data.licenseNumber = dto.licenseNumber;
     if (dto.address !== undefined) data.address = dto.address;
 
-    return this.delegate(kind).update({ where: { id }, data });
+    const paidDelta =
+      dto.paid !== undefined ? Number(dto.paid) - Number(existing.paid) : 0;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await this.delegate(kind, tx).update({
+        where: { id },
+        data,
+      });
+
+      if (paidDelta > 0) {
+        await tx.payment.create({
+          data: {
+            driverId: updated.driverId,
+            adminId: adminId || null,
+            documentKind: kind,
+            documentId: updated.id,
+            amount: paidDelta,
+            note: dto.note || null,
+          },
+        });
+      }
+
+      return updated;
+    });
   }
 
   async remove(kind: DocKind, id: string) {
@@ -168,13 +219,13 @@ export class DocumentsService {
     return { ok: true };
   }
 
-  private delegate(kind: DocKind): any {
+  private delegate(kind: DocKind, client: any = this.prisma): any {
     const map = {
-      putyovka: this.prisma.putyovka,
-      tir: this.prisma.tir,
-      dazvol: this.prisma.dazvol,
-      license: this.prisma.license,
-      rental: this.prisma.rental,
+      putyovka: client.putyovka,
+      tir: client.tir,
+      dazvol: client.dazvol,
+      license: client.license,
+      rental: client.rental,
     };
     return map[kind];
   }
@@ -182,5 +233,6 @@ export class DocumentsService {
   private async ensure(kind: DocKind, id: string) {
     const item = await this.delegate(kind).findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Hujjat topilmadi');
+    return item as { id: string; driverId: string; paid: number };
   }
 }

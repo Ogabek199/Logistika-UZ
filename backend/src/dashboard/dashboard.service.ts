@@ -56,7 +56,11 @@ export class DashboardService {
         expense: 0,
       });
     }
-    const addToMonth = (date: Date, field: 'income' | 'expense', amt: number) => {
+    const addToMonth = (
+      date: Date,
+      field: 'income' | 'expense',
+      amt: number,
+    ) => {
       const bucket = monthlyBuckets.find(
         (b) => b.year === date.getFullYear() && b.month === date.getMonth(),
       );
@@ -187,9 +191,7 @@ export class DashboardService {
         expense: b.expense,
       })),
       topDebtors,
-      driversOverview: debtorRows
-        .sort((a, b) => b.debt - a.debt)
-        .slice(0, 12),
+      driversOverview: debtorRows.sort((a, b) => b.debt - a.debt).slice(0, 12),
       expiringSoon: expiring.slice(0, 12),
     };
   }

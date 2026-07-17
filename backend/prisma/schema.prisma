@@ -26,6 +26,9 @@ model Driver {
   plateNumber   String?
   passwordHash  String
   passportSeries String?
+  telegramChatId   String?
+  telegramLinkToken String?   @unique
+  telegramLinkedAt  DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -35,6 +38,8 @@ model Driver {
   licenses    License[]
   rentals     Rental[]
   expenses    Expense[]
+  payments    Payment[]
+  reminderLogs TelegramReminderLog[]
 }
 
 model Putyovka {
@@ -145,4 +150,32 @@ model Expense {
 
   @@index([driverId])
   @@index([date])
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  driverId     String
+  driver       Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  adminId      String?
+  documentKind String
+  documentId   String
+  amount       Float
+  note         String?
+  createdAt    DateTime @default(now())
+
+  @@index([driverId])
+  @@index([createdAt])
+  @@index([documentKind, documentId])
+}
+
+model TelegramReminderLog {
+  id          String   @id @default(cuid())
+  driverId    String
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  fingerprint String   @unique
+  kind        String
+  createdAt   DateTime @default(now())
+
+  @@index([driverId])
+  @@index([kind])
 }

@@ -15,6 +15,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Select } from "@/components/ui/select";
 import { useLocale, useT } from "@/i18n";
+import { LoadingScreen, TableSkeleton } from "@/components/loading-screen";
 
 export type DriverOption = {
   id: string;
@@ -80,6 +81,7 @@ export function ResourcePage<T extends { id: string }>({
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   async function loadAll() {
@@ -92,9 +94,12 @@ export function ResourcePage<T extends { id: string }>({
   }
 
   useEffect(() => {
-    loadAll().catch((e) =>
-      setError(e instanceof Error ? e.message : t("common.error")),
-    );
+    setBooting(true);
+    loadAll()
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : t("common.error")),
+      )
+      .finally(() => setBooting(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint]);
 
@@ -190,6 +195,12 @@ export function ResourcePage<T extends { id: string }>({
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
+      {booting ? (
+        <div className="space-y-4">
+          <LoadingScreen variant="inline" />
+          <TableSkeleton rows={6} cols={columns.length + 1} />
+        </div>
+      ) : (
       <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
@@ -233,6 +244,7 @@ export function ResourcePage<T extends { id: string }>({
           </tbody>
         </table>
       </div>
+      )}
 
       <Modal
         open={open}

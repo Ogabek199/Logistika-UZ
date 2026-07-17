@@ -70,7 +70,9 @@ export class AuthService {
 
   async me(userId: string, role: 'ADMIN' | 'DRIVER') {
     if (role === 'ADMIN') {
-      const admin = await this.prisma.admin.findUnique({ where: { id: userId } });
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: userId },
+      });
       if (!admin) throw new UnauthorizedException();
       return {
         id: admin.id,
@@ -79,7 +81,9 @@ export class AuthService {
         email: admin.email,
       };
     }
-    const driver = await this.prisma.driver.findUnique({ where: { id: userId } });
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: userId },
+    });
     if (!driver) throw new UnauthorizedException();
     return {
       id: driver.id,

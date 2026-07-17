@@ -31,7 +31,11 @@ function escapeXml(value: string): string {
 
 type Node = { attrs: string; content: string; start: number; end: number };
 
-function fillXml(xml: string, textRules: TextRule[], seqRules: SeqRule[]): string {
+function fillXml(
+  xml: string,
+  textRules: TextRule[],
+  seqRules: SeqRule[],
+): string {
   const nodes: Node[] = [];
   let m: RegExpExecArray | null;
   TEXT_NODE_RE.lastIndex = 0;
@@ -57,19 +61,29 @@ function fillXml(xml: string, textRules: TextRule[], seqRules: SeqRule[]): strin
   const edits: Edit[] = [];
 
   for (const rule of textRules) {
-    const re = new RegExp(rule.find.source, rule.find.flags.includes('g') ? rule.find.flags : `${rule.find.flags}g`);
+    const re = new RegExp(
+      rule.find.source,
+      rule.find.flags.includes('g') ? rule.find.flags : `${rule.find.flags}g`,
+    );
     let mm: RegExpExecArray | null;
     while ((mm = re.exec(plain))) {
       if (mm[0].length === 0) {
         re.lastIndex += 1;
         continue;
       }
-      edits.push({ s: mm.index, e: mm.index + mm[0].length, text: escapeXml(rule.replace) });
+      edits.push({
+        s: mm.index,
+        e: mm.index + mm[0].length,
+        text: escapeXml(rule.replace),
+      });
     }
   }
 
   for (const rule of seqRules) {
-    const re = new RegExp(rule.find.source, rule.find.flags.includes('g') ? rule.find.flags : `${rule.find.flags}g`);
+    const re = new RegExp(
+      rule.find.source,
+      rule.find.flags.includes('g') ? rule.find.flags : `${rule.find.flags}g`,
+    );
     let mm: RegExpExecArray | null;
     let i = 0;
     while ((mm = re.exec(plain))) {
@@ -78,7 +92,11 @@ function fillXml(xml: string, textRules: TextRule[], seqRules: SeqRule[]): strin
         continue;
       }
       const value = rule.values[i % rule.values.length];
-      edits.push({ s: mm.index, e: mm.index + mm[0].length, text: escapeXml(value) });
+      edits.push({
+        s: mm.index,
+        e: mm.index + mm[0].length,
+        text: escapeXml(value),
+      });
       i += 1;
     }
   }
@@ -121,7 +139,9 @@ function applyEdit(
   if (start.node === endInclusive.node) {
     const n = nodes[start.node];
     n.content =
-      n.content.slice(0, start.offset) + text + n.content.slice(endInclusive.offset + 1);
+      n.content.slice(0, start.offset) +
+      text +
+      n.content.slice(endInclusive.offset + 1);
     return;
   }
 
@@ -149,7 +169,7 @@ export function renderDocx(
   if (!docXml) throw new Error('document.xml topilmadi');
   const filled = fillXml(docXml.asText(), textRules, seqRules);
   zip.file('word/document.xml', filled);
-  return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }) as Buffer;
+  return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 /** «DD» MM. YYYY — templatelardagi ruscha sana formati. */
@@ -180,7 +200,7 @@ function findSoffice(): string | null {
 /** DOCX → PDF (LibreOffice kerak). */
 export async function docxToPdf(docx: Buffer): Promise<Buffer> {
   try {
-    return (await convertAsync(docx, '.pdf', undefined)) as Buffer;
+    return await convertAsync(docx, '.pdf', undefined);
   } catch {
     const soffice = findSoffice();
     if (!soffice) {

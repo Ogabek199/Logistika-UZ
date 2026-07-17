@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/utils";
 import { useLocale, useT } from "@/i18n";
+import { CardGridSkeleton, LoadingScreen } from "@/components/loading-screen";
 
 type DashboardData = {
   counts: {
@@ -120,7 +121,16 @@ export default function AdminDashboardPage() {
   }
 
   if (!data) {
-    return <div className="text-muted">{t("dashboard.loading")}</div>;
+    return (
+      <div className="space-y-8">
+        <div>
+          <div className="h-9 w-64 animate-pulse rounded-xl bg-mist" />
+          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-lg bg-mist" />
+        </div>
+        <CardGridSkeleton count={6} />
+        <LoadingScreen variant="inline" label={t("dashboard.loading")} />
+      </div>
+    );
   }
 
   return (
@@ -424,6 +434,47 @@ function HighlightCard({
   );
 }
 
+const MONTH_NAMES: Record<string, string[]> = {
+  "uz-UZ": [
+    "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+    "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+  ],
+  "ru-RU": [
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+  ],
+};
+
+function monthName(locale: string, monthIndex: number, short = false) {
+  const names = MONTH_NAMES[locale] ?? MONTH_NAMES["uz-UZ"];
+  const name = names[monthIndex] ?? "";
+  return short ? name.slice(0, 3) : name;
+}
+
+function formatCompact(value: number, locale: string) {
+  const isRu = locale === "ru-RU";
+  const units: Array<[number, string]> = [
+    [1e9, isRu ? "млрд" : "mlrd"],
+    [1e6, isRu ? "млн" : "mln"],
+    [1e3, isRu ? "тыс" : "ming"],
+  ];
+  for (const [div, suffix] of units) {
+    if (Math.abs(value) >= div) {
+      const n = value / div;
+      return `${n % 1 === 0 ? n : n.toFixed(1)} ${suffix}`;
+    }
+  }
+  return String(value);
+}
+
+function niceCeil(value: number) {
+  if (value <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(value)));
+  const norm = value / pow;
+  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  return nice * pow;
+}
+
 function IncomeExpenseChart({
   data,
   locale,
@@ -435,15 +486,26 @@ function IncomeExpenseChart({
   incomeLabel: string;
   expenseLabel: string;
 }) {
-  const max = Math.max(
-    1,
-    ...data.map((d) => Math.max(d.income, d.expense)),
-  );
-  const monthFmt = new Intl.DateTimeFormat(locale, { month: "short" });
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const rawMax = Math.max(...data.map((d) => Math.max(d.income, d.expense)), 0);
+  const max = niceCeil(rawMax);
+
+  const W = 720;
+  const H = 260;
+  const PAD = { top: 14, right: 12, bottom: 30, left: 56 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+  const groupW = plotW / Math.max(1, data.length);
+  const barW = Math.min(24, groupW * 0.22);
+  const gap = 6;
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+  const yFor = (v: number) => PAD.top + plotH - (v / max) * plotH;
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-4 text-xs font-semibold text-muted">
+      <div className="mb-3 flex items-center gap-4 text-xs font-semibold text-muted">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-ok" />
           {incomeLabel}
@@ -453,33 +515,132 @@ function IncomeExpenseChart({
           {expenseLabel}
         </span>
       </div>
-      <div className="flex h-52 items-end justify-between gap-3">
-        {data.map((d) => {
-          const [year, month] = d.key.split("-").map(Number);
-          const label = monthFmt.format(new Date(year, month - 1, 1));
-          return (
-            <div
-              key={d.key}
-              className="flex flex-1 flex-col items-center gap-2"
+
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        role="img"
+        onMouseLeave={() => setHovered(null)}
+      >
+        {yTicks.map((t) => (
+          <g key={t}>
+            <line
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={yFor(t * max)}
+              y2={yFor(t * max)}
+              stroke="currentColor"
+              className="text-line"
+              strokeWidth={t === 0 ? 1.5 : 1}
+              strokeDasharray={t === 0 ? undefined : "4 4"}
+            />
+            <text
+              x={PAD.left - 8}
+              y={yFor(t * max) + 4}
+              textAnchor="end"
+              className="fill-muted text-[11px]"
             >
-              <div className="flex h-full w-full items-end justify-center gap-1">
-                <div
-                  className="w-1/2 max-w-[22px] rounded-t-md bg-ok/80 transition-all"
-                  style={{ height: `${(d.income / max) * 100}%` }}
-                  title={`${incomeLabel}: ${formatMoney(d.income, locale)}`}
-                />
-                <div
-                  className="w-1/2 max-w-[22px] rounded-t-md bg-danger/80 transition-all"
-                  style={{ height: `${(d.expense / max) * 100}%` }}
-                  title={`${expenseLabel}: ${formatMoney(d.expense, locale)}`}
-                />
-              </div>
-              <span className="text-xs font-medium capitalize text-muted">
-                {label}
-              </span>
-            </div>
+              {formatCompact(t * max, locale)}
+            </text>
+          </g>
+        ))}
+
+        {data.map((d, i) => {
+          const [year, month] = d.key.split("-").map(Number);
+          const cx = PAD.left + groupW * i + groupW / 2;
+          const incomeH = (d.income / max) * plotH;
+          const expenseH = (d.expense / max) * plotH;
+          const baseY = PAD.top + plotH;
+          const isHovered = hovered === i;
+          return (
+            <g
+              key={d.key}
+              onMouseEnter={() => setHovered(i)}
+              opacity={hovered === null || isHovered ? 1 : 0.45}
+              className="transition-opacity"
+            >
+              <rect
+                x={PAD.left + groupW * i}
+                y={PAD.top}
+                width={groupW}
+                height={plotH}
+                fill={isHovered ? "currentColor" : "transparent"}
+                className="text-mist-2"
+                opacity={isHovered ? 0.6 : 0}
+              />
+              <rect
+                x={cx - barW - gap / 2}
+                y={baseY - Math.max(incomeH, d.income > 0 ? 3 : 0)}
+                width={barW}
+                height={Math.max(incomeH, d.income > 0 ? 3 : 0)}
+                rx={4}
+                className="fill-ok/80"
+              >
+                <title>{`${monthName(locale, month - 1)} ${year} — ${incomeLabel}: ${formatMoney(d.income, locale)}`}</title>
+              </rect>
+              <rect
+                x={cx + gap / 2}
+                y={baseY - Math.max(expenseH, d.expense > 0 ? 3 : 0)}
+                width={barW}
+                height={Math.max(expenseH, d.expense > 0 ? 3 : 0)}
+                rx={4}
+                className="fill-danger/80"
+              >
+                <title>{`${monthName(locale, month - 1)} ${year} — ${expenseLabel}: ${formatMoney(d.expense, locale)}`}</title>
+              </rect>
+              <text
+                x={cx}
+                y={H - 8}
+                textAnchor="middle"
+                className={`text-[12px] font-medium ${
+                  isHovered ? "fill-ink" : "fill-muted"
+                }`}
+              >
+                {monthName(locale, month - 1, true)}
+              </text>
+            </g>
           );
         })}
+      </svg>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {hovered !== null && data[hovered] ? (
+          <>
+            <div className="flex items-center justify-between rounded-2xl bg-mist-2 px-4 py-2.5 text-sm">
+              <span className="text-muted">{incomeLabel}</span>
+              <span className="font-bold text-ok">
+                {formatMoney(data[hovered].income, locale)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-2xl bg-mist-2 px-4 py-2.5 text-sm">
+              <span className="text-muted">{expenseLabel}</span>
+              <span className="font-bold text-danger">
+                {formatMoney(data[hovered].expense, locale)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between rounded-2xl bg-mist-2 px-4 py-2.5 text-sm">
+              <span className="text-muted">{incomeLabel}</span>
+              <span className="font-bold text-ok">
+                {formatMoney(
+                  data.reduce((s, d) => s + d.income, 0),
+                  locale,
+                )}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-2xl bg-mist-2 px-4 py-2.5 text-sm">
+              <span className="text-muted">{expenseLabel}</span>
+              <span className="font-bold text-danger">
+                {formatMoney(
+                  data.reduce((s, d) => s + d.expense, 0),
+                  locale,
+                )}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

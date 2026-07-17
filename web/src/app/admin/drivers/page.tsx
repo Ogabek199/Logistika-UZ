@@ -27,6 +27,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { ActionMenu, type ActionItem } from "@/components/ui/action-menu";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useLocale, useT } from "@/i18n";
+import { LoadingScreen, TableSkeleton } from "@/components/loading-screen";
 
 function isoToday(offsetYears = 0) {
   const d = new Date();
@@ -90,6 +91,7 @@ export default function DriversPage() {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [dovDriver, setDovDriver] = useState<DriverRow | null>(null);
   const [dovForm, setDovForm] = useState({ passport: "", startDate: "", endDate: "" });
@@ -129,9 +131,12 @@ export default function DriversPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    loadPage(page, q).catch((e) =>
-      setError(e instanceof Error ? e.message : t("common.error")),
-    );
+    setBooting(true);
+    loadPage(page, q)
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : t("common.error")),
+      )
+      .finally(() => setBooting(false));
   }, [loadPage, page, q, t]);
 
   const suggestionItems = useMemo(
@@ -292,6 +297,13 @@ export default function DriversPage() {
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
+      {booting ? (
+        <div className="space-y-4">
+          <LoadingScreen variant="inline" />
+          <TableSkeleton rows={8} cols={6} />
+        </div>
+      ) : (
+        <>
       <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
         <table className="w-full min-w-[800px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
@@ -344,6 +356,8 @@ export default function DriversPage() {
         total={total}
         onPageChange={setPage}
       />
+        </>
+      )}
 
       <Modal
         open={open}

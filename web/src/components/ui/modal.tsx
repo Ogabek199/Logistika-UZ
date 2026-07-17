@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n";
+import { BrandLogo } from "@/components/brand-logo";
 
 type ModalProps = {
   open: boolean;
@@ -63,16 +64,19 @@ export function Modal({
       >
         <div className="shrink-0 bg-gradient-to-br from-[#0b1f33] via-[#12304a] to-[#1a4a73] px-5 py-4 text-white sm:px-6 sm:py-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/50">
-                {t("common.brand")}
-              </p>
-              <h3 className="mt-1 truncate text-xl font-extrabold tracking-tight sm:text-2xl">
-                {title}
-              </h3>
-              {subtitle ? (
-                <p className="mt-1 text-sm leading-snug text-white/65">{subtitle}</p>
-              ) : null}
+            <div className="flex min-w-0 items-start gap-3">
+              <BrandLogo size={40} className="mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/50">
+                  {t("common.brand")}
+                </p>
+                <h3 className="mt-1 truncate text-xl font-extrabold tracking-tight sm:text-2xl">
+                  {title}
+                </h3>
+                {subtitle ? (
+                  <p className="mt-1 text-sm leading-snug text-white/65">{subtitle}</p>
+                ) : null}
+              </div>
             </div>
             <button
               type="button"

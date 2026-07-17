@@ -7,6 +7,8 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDriverDto, UpdateDriverDto } from './dto/driver.dto';
 import { DoverennostDto } from './dto/doverennost.dto';
+import { TelegramService } from '../telegram/telegram.service';
+import { TelegramMessageDto } from './dto/telegram.dto';
 import { renderDocx, formatRuDate, docxToPdf } from '../documents/docx.util';
 
 const NAME_SOURCES = [
@@ -33,22 +35,20 @@ const DOC_SELECT = {
   status: true,
 } as const;
 
-function mapDriverRow(
-  d: {
-    id: string;
-    fullName: string;
-    phone: string;
-    vehicle: string | null;
-    plateNumber: string | null;
-    passportSeries: string | null;
-    createdAt: Date;
-    putyovkas: Array<{ price: number; paid: number }>;
-    tirs: Array<{ price: number; paid: number }>;
-    dazvols: Array<{ price: number; paid: number }>;
-    licenses: Array<{ price: number; paid: number }>;
-    rentals: Array<{ price: number; paid: number }>;
-  },
-) {
+function mapDriverRow(d: {
+  id: string;
+  fullName: string;
+  phone: string;
+  vehicle: string | null;
+  plateNumber: string | null;
+  passportSeries: string | null;
+  createdAt: Date;
+  putyovkas: Array<{ price: number; paid: number }>;
+  tirs: Array<{ price: number; paid: number }>;
+  dazvols: Array<{ price: number; paid: number }>;
+  licenses: Array<{ price: number; paid: number }>;
+  rentals: Array<{ price: number; paid: number }>;
+}) {
   const docs = [
     ...d.putyovkas,
     ...d.tirs,
@@ -85,9 +85,42 @@ function buildWhere(q?: string) {
     : {};
 }
 
+function maskChatId(chatId: string | null) {
+  if (!chatId) return null;
+  if (chatId.length <= 5) return '***';
+  return `${chatId.slice(0, 3)}…${chatId.slice(-2)}`;
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function telegramHeader(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('uz-UZ', {
+    timeZone: 'Asia/Tashkent',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value || '';
+
+  const date = `${get('day')}.${get('month')}.${get('year')}`;
+  const time = `${get('hour')}:${get('minute')}`;
+
+  return [`📢 <b>Logistika UZ</b>`, `📅 ${date}  🕐 ${time}`, ''].join('\n');
+}
+
 @Injectable()
 export class DriversService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telegram: TelegramService,
+  ) {}
 
   async getStats() {
     const [driverCount, putyovkas, tirs, dazvols, licenses, rentals] =
@@ -100,7 +133,13 @@ export class DriversService {
         this.prisma.rental.findMany({ select: DOC_SELECT }),
       ]);
 
-    const allDocs = [...putyovkas, ...tirs, ...dazvols, ...licenses, ...rentals];
+    const allDocs = [
+      ...putyovkas,
+      ...tirs,
+      ...dazvols,
+      ...licenses,
+      ...rentals,
+    ];
     const activeDriverIds = new Set<string>();
     let totalPaid = 0;
     let totalDebt = 0;
@@ -189,6 +228,8 @@ export class DriversService {
       vehicle: d.vehicle,
       plateNumber: d.plateNumber,
       passportSeries: d.passportSeries,
+      telegramChatId: d.telegramChatId,
+      telegramLinkedAt: d.telegramLinkedAt,
       createdAt: d.createdAt,
       putyovkas: withDebt(d.putyovkas),
       tirs: withDebt(d.tirs),
@@ -204,6 +245,8 @@ export class DriversService {
     const exists = await this.prisma.driver.findUnique({ where: { phone } });
     if (exists) throw new BadRequestException('Bu telefon band');
 
+    const telegramChatId = dto.telegramChatId?.trim() || null;
+
     return this.prisma.driver.create({
       data: {
         fullName: dto.fullName.trim(),
@@ -211,6 +254,8 @@ export class DriversService {
         vehicle: dto.vehicle?.trim() || null,
         plateNumber: dto.plateNumber?.trim() || null,
         passportSeries: dto.passportSeries?.trim() || null,
+        telegramChatId,
+        telegramLinkedAt: telegramChatId ? new Date() : null,
         passwordHash: await bcrypt.hash(dto.password, 10),
       },
     });
@@ -233,6 +278,11 @@ export class DriversService {
       data.plateNumber = dto.plateNumber.trim() || null;
     if (dto.passportSeries !== undefined)
       data.passportSeries = dto.passportSeries.trim() || null;
+    if (dto.telegramChatId !== undefined) {
+      const telegramChatId = dto.telegramChatId.trim() || null;
+      data.telegramChatId = telegramChatId;
+      data.telegramLinkedAt = telegramChatId ? new Date() : null;
+    }
     if (dto.password) data.passwordHash = await bcrypt.hash(dto.password, 10);
 
     return this.prisma.driver.update({ where: { id }, data });
@@ -250,6 +300,16 @@ export class DriversService {
   }
 
   async generateBlanka(id: string) {
+    const { buffer, filename } = await this.buildBlanka(id);
+    const pdf = await docxToPdf(buffer);
+    return { buffer: pdf, filename: filename.replace(/\.docx$/i, '.pdf') };
+  }
+
+  async generateBlankaDocx(id: string) {
+    return this.buildBlanka(id);
+  }
+
+  private async buildBlanka(id: string) {
     const driver = await this.prisma.driver.findUnique({ where: { id } });
     if (!driver) throw new NotFoundException('Haydovchi topilmadi');
 
@@ -265,11 +325,23 @@ export class DriversService {
     }
 
     const docx = renderDocx('blanka.docx', textRules);
-    const buffer = await docxToPdf(docx);
-    return { buffer, filename: this.fileName('Blanka', driver.fullName) };
+    return {
+      buffer: docx,
+      filename: this.fileName('Blanka', driver.fullName, 'docx'),
+    };
   }
 
   async generateDoverennost(id: string, dto: DoverennostDto) {
+    const { buffer, filename } = await this.buildDoverennost(id, dto);
+    const pdf = await docxToPdf(buffer);
+    return { buffer: pdf, filename: filename.replace(/\.docx$/i, '.pdf') };
+  }
+
+  async generateDoverennostDocx(id: string, dto: DoverennostDto) {
+    return this.buildDoverennost(id, dto);
+  }
+
+  private async buildDoverennost(id: string, dto: DoverennostDto) {
     const driver = await this.prisma.driver.findUnique({ where: { id } });
     if (!driver) throw new NotFoundException('Haydovchi topilmadi');
 
@@ -308,15 +380,76 @@ export class DriversService {
         : [];
 
     const docx = renderDocx('doverennost.docx', textRules, seqRules);
-    const buffer = await docxToPdf(docx);
-    return { buffer, filename: this.fileName('Doverennost', driver.fullName) };
+    return {
+      buffer: docx,
+      filename: this.fileName('Doverennost', driver.fullName, 'docx'),
+    };
   }
 
-  private fileName(prefix: string, fullName: string) {
+  async getTelegramLink(id: string) {
+    const driver = await this.telegram.ensureLinkToken(id);
+    return {
+      url: this.telegram.getLinkUrl(driver.telegramLinkToken!),
+      linked: Boolean(driver.telegramChatId),
+      chatIdMasked: maskChatId(driver.telegramChatId),
+      linkedAt: driver.telegramLinkedAt,
+    };
+  }
+
+  async sendTelegram(id: string, dto: TelegramMessageDto) {
+    const driver = await this.prisma.driver.findUnique({ where: { id } });
+    if (!driver) throw new NotFoundException('Haydovchi topilmadi');
+    if (!driver.telegramChatId) {
+      throw new BadRequestException(
+        'Telegram bog‘lanmagan. Avval havola orqali bog‘lang.',
+      );
+    }
+
+    const template = dto.template || (dto.message?.trim() ? 'custom' : 'debt');
+    let body: string;
+
+    if (template === 'custom') {
+      const message = dto.message?.trim();
+      if (!message) {
+        throw new BadRequestException('Xabar matni bo‘sh');
+      }
+      body = message;
+    } else {
+      const docs = await this.prisma.driver.findUnique({
+        where: { id },
+        include: {
+          putyovkas: true,
+          tirs: true,
+          dazvols: true,
+          licenses: true,
+          rentals: true,
+        },
+      });
+      const allDocs = [
+        ...(docs?.putyovkas || []),
+        ...(docs?.tirs || []),
+        ...(docs?.dazvols || []),
+        ...(docs?.licenses || []),
+        ...(docs?.rentals || []),
+      ];
+      const totalDebt = allDocs.reduce((s, x) => s + debt(x.price, x.paid), 0);
+
+      body = [
+        `<b>${escapeHtml(driver.fullName)}</b>`,
+        `Telefon: ${driver.phone}`,
+        `Jami qarz: ${totalDebt.toLocaleString('uz-UZ')} so'm`,
+      ].join('\n');
+    }
+
+    const text = [telegramHeader(), body, '', 'Logistika UZ'].join('\n');
+    return this.telegram.sendMessage(driver.telegramChatId, text);
+  }
+
+  private fileName(prefix: string, fullName: string, ext = 'pdf') {
     const slug = fullName
       .trim()
       .replace(/[^\p{L}\p{N}]+/gu, '_')
       .replace(/^_+|_+$/g, '');
-    return `${prefix}_${slug || 'haydovchi'}.pdf`;
+    return `${prefix}_${slug || 'haydovchi'}.${ext}`;
   }
 }

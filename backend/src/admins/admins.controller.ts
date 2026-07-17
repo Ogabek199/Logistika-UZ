@@ -30,10 +30,7 @@ export class AdminsController {
   }
 
   @Delete(':id')
-  remove(
-    @Param('id') id: string,
-    @Req() req: { user: { userId: string } },
-  ) {
+  remove(@Param('id') id: string, @Req() req: { user: { userId: string } }) {
     return this.admins.remove(id, req.user.userId);
   }
 }

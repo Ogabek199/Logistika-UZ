@@ -1,10 +1,9 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Truck,
-  Shield,
+  UserCog,
   ArrowRight,
   Eye,
   EyeOff,
@@ -13,14 +12,15 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
-import { api, saveSession, type AuthResponse } from "@/lib/api";
+import { login } from "@/lib/api";
 import { cn, formatPhoneMask } from "@/lib/utils";
 import { LanguageSwitcher, useT } from "@/i18n";
+import { BrandLogo } from "@/components/brand-logo";
+import { Spinner } from "@/components/ui/spinner";
 
 type RoleTab = "admin" | "driver";
 
 export default function LoginPage() {
-  const router = useRouter();
   const t = useT();
   const [role, setRole] = useState<RoleTab>("admin");
   const [username, setUsername] = useState("");
@@ -45,15 +45,13 @@ export default function LoginPage() {
         role === "admin"
           ? { role, username, password }
           : { role, phone, password };
-      const data = await api<AuthResponse>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      saveSession(data);
-      router.replace(data.user.role === "ADMIN" ? "/admin" : "/driver");
+      const data = await login(payload);
+      // Hard navigation: soft RSC nav breaks behind ngrok / LAN hosts in Next.js.
+      window.location.assign(
+        data.user.role === "ADMIN" ? "/admin" : "/driver",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : t("login.failed"));
-    } finally {
       setLoading(false);
     }
   }
@@ -76,11 +74,17 @@ export default function LoginPage() {
         <div className="bg-orb absolute bottom-10 right-0 h-80 w-80 rounded-full bg-[#c8891a]/14 blur-3xl [animation-delay:1.6s]" />
       </div>
 
-      <div className="absolute right-5 top-5 z-10 md:right-8 md:top-8">
+      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 py-5 md:px-8 md:py-7">
+        <div className="flex items-center gap-3">
+          <BrandLogo size={44} priority className="ring-white/20" />
+          <span className="text-lg font-extrabold tracking-tight">
+            {t("common.brand")}
+          </span>
+        </div>
         <LanguageSwitcher variant="dark" />
-      </div>
+      </header>
 
-      <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-5 py-10 lg:grid-cols-2 lg:gap-14 lg:px-8">
+      <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-5 pb-10 pt-24 lg:grid-cols-2 lg:gap-14 lg:px-8 lg:pt-10">
         <section className="animate-rise hidden lg:block">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70 backdrop-blur">
             <MapPin className="h-3.5 w-3.5 text-[#4ea0ef]" />
@@ -140,7 +144,7 @@ export default function LoginPage() {
                       : "text-[#5d738a] hover:text-[#071525]",
                   )}
                 >
-                  <Shield className="h-4 w-4" />
+                  <UserCog className="h-4 w-4" />
                   {t("login.admin")}
                 </button>
                 <button
@@ -244,8 +248,17 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? t("login.checking") : t("login.submit")}
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                {loading ? (
+                  <>
+                    <Spinner size="sm" className="border-white/30 border-t-white" />
+                    {t("login.checking")}
+                  </>
+                ) : (
+                  <>
+                    {t("login.submit")}
+                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                  </>
+                )}
               </button>
             </form>
           </div>

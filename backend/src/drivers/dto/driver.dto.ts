@@ -1,9 +1,4 @@
-import {
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MinLength,
-} from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateDriverDto {
   @IsString()
@@ -29,6 +24,10 @@ export class CreateDriverDto {
   @IsOptional()
   @IsString()
   passportSeries?: string;
+
+  @IsOptional()
+  @IsString()
+  telegramChatId?: string;
 }
 
 export class UpdateDriverDto {
@@ -56,4 +55,8 @@ export class UpdateDriverDto {
   @IsOptional()
   @IsString()
   passportSeries?: string;
+
+  @IsOptional()
+  @IsString()
+  telegramChatId?: string;
 }

@@ -15,9 +15,11 @@ import {
   UserCog,
   LogOut,
 } from "lucide-react";
-import { clearSession, getStoredUser, type AuthUser } from "@/lib/api";
+import { clearSession, hydrateUser, isServerUnavailable, type AuthUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher, useT } from "@/i18n";
+import { BrandLogo } from "@/components/brand-logo";
+import { LoadingScreen } from "@/components/loading-screen";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -41,38 +43,43 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const u = getStoredUser();
-    if (!u || u.role !== "ADMIN") {
-      router.replace("/");
-      return;
-    }
-    setUser(u);
+    hydrateUser()
+      .then((u) => {
+        if (u.role !== "ADMIN") {
+          router.replace("/driver");
+          return;
+        }
+        setUser(u);
+      })
+      .catch((err) => {
+        if (isServerUnavailable(err)) return;
+        router.replace("/");
+      });
   }, [router]);
 
-  function logout() {
-    clearSession();
+  async function logout() {
+    await clearSession();
     router.replace("/");
   }
 
   if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-mist-2 text-muted">
-        {t("common.loading")}
-      </div>
-    );
+    return <LoadingScreen variant="page" />;
   }
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#eef3f8_0%,#f7f9fc_40%,#fbfcfe_100%)]">
       <div className="flex min-h-screen w-full">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-ink px-4 py-6 text-white md:flex">
-          <div className="mb-8 px-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">
-              {t("nav.control")}
-            </p>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight">
-              {t("common.brand")}
-            </h1>
+          <div className="mb-8 flex items-center gap-3 px-2">
+            <BrandLogo size={44} priority />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">
+                {t("nav.control")}
+              </p>
+              <h1 className="mt-0.5 text-xl font-extrabold tracking-tight">
+                {t("common.brand")}
+              </h1>
+            </div>
           </div>
           <nav className="flex flex-1 flex-col gap-1">
             {nav.map((item) => {

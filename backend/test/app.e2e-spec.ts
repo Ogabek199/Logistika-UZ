@@ -1,5 +1,4 @@
-/// <reference types="jest" />
-
+import { describe, beforeEach, afterEach, it } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -15,12 +14,13 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
     await app.init();
   });
 
   it('/api/auth/login (POST) validation', () => {
     return request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({})
       .expect(400);
   });
