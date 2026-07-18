@@ -8,8 +8,10 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { DocumentsService } from './documents.service';
@@ -18,6 +20,23 @@ import {
   CreateExpenseDto,
   UpdateDocDto,
 } from './dto/document.dto';
+
+const DOCX_MIME =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+function sendDocx(
+  res: Response,
+  { buffer, filename }: { buffer: Buffer; filename: string },
+) {
+  res.set({
+    'Content-Type': DOCX_MIME,
+    'Content-Disposition': `attachment; filename="document"; filename*=UTF-8''${encodeURIComponent(
+      filename,
+    )}`,
+    'Content-Length': String(buffer.length),
+  });
+  res.end(buffer);
+}
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,6 +47,11 @@ export class DocumentsController {
   @Get('putyovkalar')
   putyovkas(@Query('q') q?: string, @Query('filter') filter?: string) {
     return this.docs.list('putyovka', q, filter);
+  }
+
+  @Get('putyovkalar/:id/docx')
+  async putyovkaDocx(@Param('id') id: string, @Res() res: Response) {
+    sendDocx(res, await this.docs.generatePutyovkaDocx(id));
   }
 
   @Post('putyovkalar')

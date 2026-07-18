@@ -85,7 +85,7 @@ export function Select({
       ? createPortal(
           <div
             id="logistika-select-pop"
-            className="fixed z-[500] overflow-hidden rounded-2xl border border-line bg-white shadow-[0_24px_60px_rgba(7,21,37,0.28)]"
+            className="fixed z-[500] overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_24px_60px_rgba(7,21,37,0.28)]"
             style={{
               top: coords.top,
               left: coords.left,

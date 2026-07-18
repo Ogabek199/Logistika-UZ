@@ -53,7 +53,7 @@ export function LiveSearch({
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
-      <div className="flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 shadow-sm focus-within:border-steel focus-within:shadow-[0_0_0_4px_rgba(47,127,209,0.12)]">
+      <div className="flex items-center gap-2 rounded-2xl border border-line bg-paper px-4 py-3 shadow-sm focus-within:border-steel focus-within:shadow-[0_0_0_4px_rgba(47,127,209,0.12)]">
         <Search className="h-4 w-4 shrink-0 text-muted" />
         <input
           className="w-full bg-transparent text-sm outline-none"
@@ -81,7 +81,7 @@ export function LiveSearch({
       </div>
 
       {open && value.trim() && filtered.length > 0 ? (
-        <ul className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-2xl border border-line bg-white shadow-2xl">
+        <ul className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-2xl border border-line bg-paper shadow-2xl">
           {filtered.map((s) => (
             <li key={s.id}>
               <button

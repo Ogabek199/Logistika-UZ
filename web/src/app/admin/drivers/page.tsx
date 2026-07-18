@@ -17,15 +17,18 @@ import {
   Home,
   FileType2,
   ScrollText,
+  MapPin,
 } from "lucide-react";
 import { api, downloadFile } from "@/lib/api";
 import { formatMoney, formatPhoneMask, formatPassportMask, formatPlateMask, formatPersonName } from "@/lib/utils";
+import { UZ_REGIONS, regionRu, regionRuFem } from "@/lib/regions";
 import { Modal, ConfirmModal } from "@/components/ui/modal";
 import { PasswordInput } from "@/components/ui/password-input";
 import { LiveSearch } from "@/components/ui/live-search";
 import { Pagination } from "@/components/ui/pagination";
 import { ActionMenu, type ActionItem } from "@/components/ui/action-menu";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Select } from "@/components/ui/select";
 import { useLocale, useT } from "@/i18n";
 import { LoadingScreen, TableSkeleton } from "@/components/loading-screen";
 
@@ -43,6 +46,8 @@ type DriverRow = {
   phone: string;
   vehicle: string | null;
   plateNumber: string | null;
+  trailer: string | null;
+  trailerNo: string | null;
   passportSeries: string | null;
   totalDebt: number;
   totalPaid: number;
@@ -71,6 +76,8 @@ const empty = {
   phone: "+998 ",
   vehicle: "",
   plateNumber: "",
+  trailer: "",
+  trailerNo: "",
   password: "",
   passportSeries: "",
 };
@@ -94,9 +101,32 @@ export default function DriversPage() {
   const [booting, setBooting] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [dovDriver, setDovDriver] = useState<DriverRow | null>(null);
-  const [dovForm, setDovForm] = useState({ passport: "", startDate: "", endDate: "" });
-  const [dovLoading, setDovLoading] = useState(false);
+  const [dovForm, setDovForm] = useState({
+    lastName: "",
+    firstName: "",
+    patronymic: "",
+    passport: "",
+    passportIssued: "",
+    regionId: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [dovLoading, setDovLoading] = useState<"doverennost" | "blanka" | null>(
+    null,
+  );
   const [dovError, setDovError] = useState("");
+  const [dovKind, setDovKind] = useState<"doverennost" | "blanka" | "both">(
+    "both",
+  );
+
+  const regionOptions = useMemo(
+    () =>
+      UZ_REGIONS.map((r) => ({
+        value: r.id,
+        label: t(`regions.${r.id}`),
+      })),
+    [t],
+  );
 
   const loadPage = useCallback(
     async (nextPage: number, term: string) => {
@@ -182,40 +212,62 @@ export default function DriversPage() {
     await loadPage(nextPage, q);
   }
 
-  function openDoverennost(d: DriverRow) {
+  function openDoverennost(d: DriverRow, kind: "doverennost" | "blanka" | "both" = "both") {
     setDovError("");
+    setDovKind(kind);
     setDovDriver(d);
+    const parts = d.fullName.trim().split(/\s+/).filter(Boolean);
     setDovForm({
+      lastName: parts[0] || "",
+      firstName: parts[1] || "",
+      patronymic: parts.slice(2).join(" ") || "",
       passport: d.passportSeries || "",
+      passportIssued: "",
+      regionId: "",
       startDate: isoToday(0),
       endDate: isoToday(2),
     });
   }
 
-  async function downloadBlanka(d: DriverRow) {
-    try {
-      await downloadFile(`/admin/drivers/${d.id}/blanka`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("common.error"));
-    }
-  }
-
-  async function submitDoverennost(e: FormEvent) {
-    e.preventDefault();
+  async function downloadPassportDoc(kind: "doverennost" | "blanka") {
     if (!dovDriver) return;
-    setDovLoading(true);
+    if (!dovForm.regionId) {
+      setDovError(t("doverennost.regionRequired"));
+      return;
+    }
+    if (!dovForm.startDate || !dovForm.endDate) {
+      setDovError(t("doverennost.periodRequired"));
+      return;
+    }
+    setDovLoading(kind);
     setDovError("");
     try {
-      await downloadFile(`/admin/drivers/${dovDriver.id}/doverennost`, {
+      const { regionId, ...rest } = dovForm;
+      const endpoint =
+        kind === "blanka"
+          ? `/admin/drivers/${dovDriver.id}/blanka/docx`
+          : `/admin/drivers/${dovDriver.id}/doverennost/docx`;
+      await downloadFile(endpoint, {
         method: "POST",
-        body: JSON.stringify(dovForm),
+        body: JSON.stringify({
+          ...rest,
+          region:
+            kind === "blanka" ? regionRuFem(regionId) : regionRu(regionId),
+        }),
       });
       setDovDriver(null);
     } catch (err) {
       setDovError(err instanceof Error ? err.message : t("common.error"));
     } finally {
-      setDovLoading(false);
+      setDovLoading(null);
     }
+  }
+
+  async function submitDoverennost(e: FormEvent) {
+    e.preventDefault();
+    await downloadPassportDoc(
+      dovKind === "blanka" ? "blanka" : "doverennost",
+    );
   }
 
   function rowActions(d: DriverRow): ActionItem[] {
@@ -228,8 +280,8 @@ export default function DriversPage() {
       { id: "ijara", label: t("nav.rentals"), href: `${base}/add/ijara`, icon: <Home className="h-4 w-4" /> },
       { id: "view", label: t("common.view"), href: base, icon: <Eye className="h-4 w-4" />, tone: "accent", divider: true },
       { id: "edit", label: t("common.edit"), href: `${base}/edit`, icon: <Pencil className="h-4 w-4" />, tone: "accent" },
-      { id: "blanka", label: t("drivers.blanka"), onClick: () => downloadBlanka(d), icon: <FileType2 className="h-4 w-4" />, tone: "accent", divider: true },
-      { id: "doverennost", label: t("drivers.doverennost"), onClick: () => openDoverennost(d), icon: <ScrollText className="h-4 w-4" />, tone: "accent" },
+      { id: "blanka", label: t("drivers.blanka"), onClick: () => openDoverennost(d, "blanka"), icon: <FileType2 className="h-4 w-4" />, tone: "accent", divider: true },
+      { id: "doverennost", label: t("drivers.doverennost"), onClick: () => openDoverennost(d, "doverennost"), icon: <ScrollText className="h-4 w-4" />, tone: "accent" },
       { id: "delete", label: t("common.delete"), onClick: () => setDeleteId(d.id), icon: <Trash2 className="h-4 w-4" />, tone: "danger", divider: true },
     ];
   }
@@ -253,7 +305,7 @@ export default function DriversPage() {
             setFormError("");
             setOpen(true);
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {t("drivers.add")}
@@ -304,7 +356,7 @@ export default function DriversPage() {
         </div>
       ) : (
         <>
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[800px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -332,6 +384,11 @@ export default function DriversPage() {
                     {d.vehicle || t("common.dash")}
                     {d.plateNumber ? (
                       <span className="block text-xs text-muted">{d.plateNumber}</span>
+                    ) : null}
+                    {d.trailer || d.trailerNo ? (
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {[d.trailer, d.trailerNo].filter(Boolean).join(" · ")}
+                      </span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3 font-semibold text-signal">
@@ -370,7 +427,7 @@ export default function DriversPage() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancel")}
             </button>
@@ -453,6 +510,34 @@ export default function DriversPage() {
               />
             </Field>
 
+            <Field icon={<Truck className="h-4 w-4" />} label={t("drivers.trailer")}>
+              <input
+                className="input-field"
+                placeholder="KRONE SD"
+                value={form.trailer}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    trailer: e.target.value.toUpperCase(),
+                  }))
+                }
+              />
+            </Field>
+
+            <Field icon={<IdCard className="h-4 w-4" />} label={t("drivers.trailerNo")}>
+              <input
+                className="input-field"
+                placeholder="402884CA"
+                value={form.trailerNo}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    trailerNo: e.target.value,
+                  }))
+                }
+              />
+            </Field>
+
             <Field icon={<KeyRound className="h-4 w-4" />} label={t("drivers.password")} required>
               <PasswordInput
                 required
@@ -483,26 +568,47 @@ export default function DriversPage() {
       <Modal
         open={Boolean(dovDriver)}
         onClose={() => setDovDriver(null)}
-        title={t("drivers.doverennostTitle")}
+        title={
+          dovKind === "blanka"
+            ? t("drivers.blankaTitle")
+            : t("drivers.doverennostTitle")
+        }
         subtitle={dovDriver?.fullName}
         footer={
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => setDovDriver(null)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancel")}
             </button>
-            <button
-              form="doverennost-form"
-              type="submit"
-              disabled={dovLoading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#6d3fd1] px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
-            >
-              <ScrollText className="h-4 w-4" />
-              {dovLoading ? t("common.loading") : t("drivers.download")}
-            </button>
+            {dovKind === "blanka" || dovKind === "both" ? (
+              <button
+                type="button"
+                disabled={Boolean(dovLoading)}
+                onClick={() => void downloadPassportDoc("blanka")}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60 dark:bg-steel"
+              >
+                <FileType2 className="h-4 w-4" />
+                {dovLoading === "blanka"
+                  ? t("common.loading")
+                  : t("doverennost.downloadBlanka")}
+              </button>
+            ) : null}
+            {dovKind === "doverennost" || dovKind === "both" ? (
+              <button
+                type="button"
+                disabled={Boolean(dovLoading)}
+                onClick={() => void downloadPassportDoc("doverennost")}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#6d3fd1] px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
+              >
+                <ScrollText className="h-4 w-4" />
+                {dovLoading === "doverennost"
+                  ? t("common.loading")
+                  : t("doverennost.download")}
+              </button>
+            ) : null}
           </div>
         }
       >
@@ -513,17 +619,75 @@ export default function DriversPage() {
             </p>
           ) : null}
 
-          <Field icon={<IdCard className="h-4 w-4" />} label={t("drivers.passportFull")}>
-            <input
-              className="input-field"
-              placeholder="AA 1234567"
-              value={dovForm.passport}
-              onChange={(e) =>
-                setDovForm((f) => ({
-                  ...f,
-                  passport: formatPassportMask(e.target.value),
-                }))
-              }
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field icon={<UserRound className="h-4 w-4" />} label={t("doverennost.lastName")}>
+              <input
+                className="input-field"
+                value={dovForm.lastName}
+                onChange={(e) =>
+                  setDovForm((f) => ({
+                    ...f,
+                    lastName: formatPersonName(e.target.value),
+                  }))
+                }
+              />
+            </Field>
+            <Field icon={<UserRound className="h-4 w-4" />} label={t("doverennost.firstName")}>
+              <input
+                className="input-field"
+                value={dovForm.firstName}
+                onChange={(e) =>
+                  setDovForm((f) => ({
+                    ...f,
+                    firstName: formatPersonName(e.target.value),
+                  }))
+                }
+              />
+            </Field>
+            <Field icon={<UserRound className="h-4 w-4" />} label={t("doverennost.patronymic")}>
+              <input
+                className="input-field"
+                value={dovForm.patronymic}
+                onChange={(e) =>
+                  setDovForm((f) => ({
+                    ...f,
+                    patronymic: formatPersonName(e.target.value),
+                  }))
+                }
+              />
+            </Field>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field icon={<IdCard className="h-4 w-4" />} label={t("drivers.passportFull")}>
+              <input
+                className="input-field"
+                placeholder="AA 1234567"
+                value={dovForm.passport}
+                onChange={(e) =>
+                  setDovForm((f) => ({
+                    ...f,
+                    passport: formatPassportMask(e.target.value),
+                  }))
+                }
+              />
+            </Field>
+            <Field icon={<MapPin className="h-4 w-4" />} label={t("doverennost.region")}>
+              <Select
+                value={dovForm.regionId}
+                onChange={(v) => setDovForm((f) => ({ ...f, regionId: v }))}
+                options={regionOptions}
+                placeholder={t("doverennost.regionPlaceholder")}
+              />
+            </Field>
+          </div>
+
+          <Field icon={<IdCard className="h-4 w-4" />} label={t("doverennost.passportIssued")}>
+            <DatePicker
+              allowManual
+              value={dovForm.passportIssued}
+              onChange={(v) => setDovForm((f) => ({ ...f, passportIssued: v }))}
+              placeholder="dd.mm.yyyy"
             />
           </Field>
 
@@ -572,7 +736,7 @@ function StatCard({
 }) {
   if (light) {
     return (
-      <div className="rounded-3xl border border-line bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border border-line bg-paper p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
           {label}
         </p>
@@ -603,7 +767,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block rounded-xl border border-line bg-[#f7fafc] p-2.5 transition focus-within:border-steel/50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
+    <label className="block rounded-xl border border-line bg-field p-2.5 transition focus-within:border-steel/50 focus-within:bg-paper focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
       <span className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
         <span className="text-steel">{icon}</span>
         {label}

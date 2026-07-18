@@ -57,7 +57,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-[201] flex w-full flex-col overflow-hidden rounded-[1.4rem] border border-white/30 bg-white shadow-[0_40px_100px_rgba(4,16,24,0.45)]",
+          "relative z-[201] flex w-full flex-col overflow-hidden rounded-[1.4rem] border border-line bg-paper shadow-[0_40px_100px_rgba(4,16,24,0.45)]",
           "max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)]",
           wide ? "max-w-3xl" : "max-w-xl",
         )}
@@ -67,7 +67,7 @@ export function Modal({
             <div className="flex min-w-0 items-start gap-3">
               <BrandLogo size={40} className="mt-0.5" />
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/50">
+                <p className="text-[10px] font-semibold uppercase leading-snug tracking-[0.12em] text-white/50">
                   {t("common.brand")}
                 </p>
                 <h3 className="mt-1 truncate text-xl font-extrabold tracking-tight sm:text-2xl">
@@ -93,7 +93,7 @@ export function Modal({
         </div>
 
         {footer ? (
-          <div className="shrink-0 border-t border-line bg-[#f4f7fb] px-5 py-4 sm:px-6">
+          <div className="shrink-0 border-t border-line bg-mist-2 px-5 py-4 sm:px-6">
             {footer}
           </div>
         ) : null}
@@ -136,7 +136,7 @@ export function ConfirmModal({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
+          className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
         >
           {cancelLabel ?? t("common.cancelFull")}
         </button>

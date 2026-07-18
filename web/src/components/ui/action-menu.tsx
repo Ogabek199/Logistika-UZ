@@ -117,7 +117,7 @@ export function ActionMenu({
           setOpen((v) => !v);
         }}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg border border-line bg-white p-1.5 text-ink transition hover:bg-mist",
+          "inline-flex items-center justify-center rounded-lg border border-line bg-paper p-1.5 text-ink transition hover:bg-mist",
           open && "border-steel bg-mist",
         )}
       >
@@ -128,7 +128,7 @@ export function ActionMenu({
         ? createPortal(
             <div
               id={menuId}
-              className="fixed z-[600] overflow-hidden rounded-2xl border border-line bg-white py-1.5 shadow-[0_24px_60px_rgba(7,21,37,0.22)]"
+              className="fixed z-[600] overflow-hidden rounded-2xl border border-line bg-paper py-1.5 shadow-[0_24px_60px_rgba(7,21,37,0.22)]"
               style={{ top: coords.top, left: coords.left, width: MENU_WIDTH }}
             >
               {items.map((item) => {

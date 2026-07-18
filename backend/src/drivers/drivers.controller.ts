@@ -103,6 +103,25 @@ export class DriversController {
     sendFile(res, { ...file, mime: DOCX_MIME });
   }
 
+  @Post(':id/blanka')
+  async blankaPost(
+    @Param('id') id: string,
+    @Body() dto: DoverennostDto,
+    @Res() res: Response,
+  ) {
+    sendPdf(res, await this.drivers.generateBlanka(id, dto));
+  }
+
+  @Post(':id/blanka/docx')
+  async blankaDocxPost(
+    @Param('id') id: string,
+    @Body() dto: DoverennostDto,
+    @Res() res: Response,
+  ) {
+    const file = await this.drivers.generateBlankaDocx(id, dto);
+    sendFile(res, { ...file, mime: DOCX_MIME });
+  }
+
   @Post(':id/doverennost')
   async doverennost(
     @Param('id') id: string,

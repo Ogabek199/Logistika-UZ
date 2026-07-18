@@ -140,12 +140,12 @@ export class DriverPortalService {
     };
   }
 
-  generateBlanka(driverId: string) {
-    return this.drivers.generateBlanka(driverId);
+  generateBlanka(driverId: string, dto?: DoverennostDto) {
+    return this.drivers.generateBlanka(driverId, dto);
   }
 
-  generateBlankaDocx(driverId: string) {
-    return this.drivers.generateBlankaDocx(driverId);
+  generateBlankaDocx(driverId: string, dto?: DoverennostDto) {
+    return this.drivers.generateBlankaDocx(driverId, dto);
   }
 
   generateDoverennost(driverId: string, dto: DoverennostDto) {

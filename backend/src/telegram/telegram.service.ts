@@ -120,7 +120,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!payload) {
       await this.sendMessage(
         chatId,
-        'Logistika UZ botiga xush kelibsiz.\nHaydovchi panelidagi «Telegramni ulash» havolasi orqali /start bosing.',
+        'OOO "MUSFIRA SAVDO TRANS" botiga xush kelibsiz.\nHaydovchi panelidagi «Telegramni ulash» havolasi orqali /start bosing.',
       );
       return;
     }

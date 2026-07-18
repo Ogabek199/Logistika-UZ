@@ -102,7 +102,7 @@ export function DriverDocFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+            className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
           >
             {t("common.cancelFull")}
           </button>
@@ -212,7 +212,7 @@ function Field({
 }) {
   return (
     <label
-      className={`block rounded-2xl border border-line bg-[#f7fafc] p-3 transition focus-within:border-steel/50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)] ${className || ""}`}
+      className={`block rounded-2xl border border-line bg-field p-3 transition focus-within:border-steel/50 focus-within:bg-paper focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)] ${className || ""}`}
     >
       <span className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
         {icon ? <span className="text-steel">{icon}</span> : null}

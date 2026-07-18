@@ -18,7 +18,7 @@ async function bootstrap() {
   );
   const port = Number(process.env.PORT) || 4000;
   await app.listen(port);
-  console.log(`Logistika UZ API → http://localhost:${port}/api`);
+  console.log(`MUSFIRA SAVDO TRANS API → http://localhost:${port}/api`);
 }
 bootstrap().catch((error) => {
   console.error(error);

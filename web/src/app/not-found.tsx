@@ -46,7 +46,9 @@ export default function NotFound() {
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-5 md:px-8 md:py-7">
         <Link href="/" className="flex items-center gap-3 transition hover:opacity-90">
           <BrandLogo size={44} priority className="ring-white/20" />
-          <span className="text-lg font-extrabold tracking-tight">{t("common.brand")}</span>
+          <span className="max-w-[12rem] text-sm font-extrabold leading-snug tracking-tight sm:max-w-xs sm:text-base">
+            {t("common.brand")}
+          </span>
         </Link>
         <LanguageSwitcher variant="dark" />
       </header>

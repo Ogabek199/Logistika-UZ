@@ -5,6 +5,7 @@ import {
   CreateExpenseDto,
   UpdateDocDto,
 } from './dto/document.dto';
+import { renderDocx } from './docx.util';
 
 type DocKind = 'putyovka' | 'tir' | 'dazvol' | 'license' | 'rental';
 
@@ -14,6 +15,14 @@ function debt(price: number, paid: number) {
 
 function parseDate(v?: string | null) {
   return v ? new Date(v) : null;
+}
+
+function fileName(prefix: string, fullName: string, ext = 'docx') {
+  const slug = fullName
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${prefix}_${slug || 'haydovchi'}.${ext}`;
 }
 
 @Injectable()
@@ -34,6 +43,8 @@ export class DocumentsService {
       driverId: item.driver?.id,
       driverVehicle: item.driver?.vehicle,
       driverPlateNumber: item.driver?.plateNumber,
+      driverTrailer: item.driver?.trailer,
+      driverTrailerNo: item.driver?.trailerNo,
     }));
 
     if (filter === 'active') {
@@ -138,14 +149,22 @@ export class DocumentsService {
     if (dto.endDate !== undefined) data.endDate = parseDate(dto.endDate);
     if (dto.note !== undefined) data.note = dto.note;
     if (dto.status !== undefined) data.status = dto.status;
-    if (dto.months !== undefined) data.months = dto.months;
-    if (dto.trailerNo !== undefined) data.trailerNo = dto.trailerNo;
-    if (dto.code !== undefined) data.code = dto.code;
-    if (dto.tirNumber !== undefined) data.tirNumber = dto.tirNumber;
-    if (dto.country !== undefined) data.country = dto.country;
-    if (dto.dazvolNumber !== undefined) data.dazvolNumber = dto.dazvolNumber;
-    if (dto.licenseNumber !== undefined) data.licenseNumber = dto.licenseNumber;
-    if (dto.address !== undefined) data.address = dto.address;
+
+    if (kind === 'putyovka') {
+      if (dto.months !== undefined) data.months = dto.months;
+      if (dto.trailerNo !== undefined) data.trailerNo = dto.trailerNo;
+      if (dto.code !== undefined) data.code = dto.code;
+    } else if (kind === 'tir') {
+      if (dto.months !== undefined) data.months = dto.months;
+      if (dto.tirNumber !== undefined) data.tirNumber = dto.tirNumber;
+    } else if (kind === 'dazvol') {
+      if (dto.country !== undefined) data.country = dto.country;
+      if (dto.dazvolNumber !== undefined) data.dazvolNumber = dto.dazvolNumber;
+    } else if (kind === 'license') {
+      if (dto.licenseNumber !== undefined) data.licenseNumber = dto.licenseNumber;
+    } else if (kind === 'rental') {
+      if (dto.address !== undefined) data.address = dto.address;
+    }
 
     const paidDelta =
       dto.paid !== undefined ? Number(dto.paid) - Number(existing.paid) : 0;
@@ -164,7 +183,7 @@ export class DocumentsService {
             documentKind: kind,
             documentId: updated.id,
             amount: paidDelta,
-            note: dto.note || null,
+            note: dto.paymentNote?.trim() || null,
           },
         });
       }
@@ -175,7 +194,12 @@ export class DocumentsService {
 
   async remove(kind: DocKind, id: string) {
     await this.ensure(kind, id);
-    await this.delegate(kind).delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.deleteMany({
+        where: { documentId: id, documentKind: kind },
+      });
+      await this.delegate(kind, tx).delete({ where: { id } });
+    });
     return { ok: true };
   }
 
@@ -217,6 +241,110 @@ export class DocumentsService {
     if (!e) throw new NotFoundException('Chiqim topilmadi');
     await this.prisma.expense.delete({ where: { id } });
     return { ok: true };
+  }
+
+  async generatePutyovkaDocx(id: string) {
+    const putyovka = await this.prisma.putyovka.findUnique({
+      where: { id },
+      include: { driver: true },
+    });
+    if (!putyovka) throw new NotFoundException('Putyovka topilmadi');
+
+    const driver = putyovka.driver;
+    const textRules: Array<{ find: RegExp; replace: string }> = [];
+
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const today = new Date(
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Tashkent' }),
+    );
+    const next = new Date(today);
+    next.setMonth(next.getMonth() + 1);
+
+    const d1 = pad2(today.getDate());
+    const m1 = pad2(today.getMonth() + 1);
+    const y1 = String(today.getFullYear());
+    const d2 = pad2(next.getDate());
+    const m2 = pad2(next.getMonth() + 1);
+    const y2 = String(next.getFullYear());
+
+    // Ikki qator: "18.07.2026" / "18.08.2026"
+    textRules.push({
+      find: /07 {18}11\s+2025г\s*/g,
+      replace: `${d1}.${m1}.${y1}`,
+    });
+    textRules.push({
+      find: /06 {16}122025/g,
+      replace: `${d2}.${m2}.${y2}`,
+    });
+    // Jadvaldagi "Выезд из гар" — Число / Месяц
+    textRules.push({
+      find: /(?<=Выезд из гар)07/g,
+      replace: d1,
+    });
+    textRules.push({
+      find: /(?<=Выезд из гар07)11/g,
+      replace: m1,
+    });
+
+    if (driver.fullName?.trim()) {
+      textRules.push({
+        find: /Джуманбаев\s*А/g,
+        replace: driver.fullName.trim(),
+      });
+    }
+
+    if (driver.vehicle?.trim()) {
+      textRules.push({
+        find: /DAF\s+/g,
+        replace: `${driver.vehicle.trim()} `,
+      });
+    }
+
+    if (driver.plateNumber?.trim()) {
+      textRules.push({
+        find: /40[\s\u00a0]*D\s*545\s*RA/g,
+        replace: driver.plateNumber.trim(),
+      });
+    }
+
+    const trailer = driver.trailer?.trim() || null;
+    const trailerNo =
+      driver.trailerNo?.trim() || putyovka.trailerNo?.trim() || null;
+
+    if (trailer && trailerNo) {
+      textRules.push({
+        find: /KOEGEL\s*№\s*40\s*9787\s*AA/g,
+        replace: `${trailer} № ${trailerNo}`,
+      });
+    } else if (trailer) {
+      textRules.push({ find: /KOEGEL/g, replace: trailer });
+      if (trailerNo) {
+        textRules.push({
+          find: /40\s*9787\s*AA/g,
+          replace: trailerNo,
+        });
+      }
+    } else if (trailerNo) {
+      textRules.push({
+        find: /KOEGEL\s*№\s*40\s*9787\s*AA/g,
+        replace: trailerNo,
+      });
+    }
+
+    if (putyovka.code?.trim()) {
+      textRules.push({
+        find: /ПУТЕВОЙ ЛИСТ\s*№\s*11/g,
+        replace: `ПУТЕВОЙ ЛИСТ  № ${putyovka.code.trim()}`,
+      });
+    }
+
+    const buffer = renderDocx('putyovka.docx', textRules, [], {
+      forceBlackText: true,
+    });
+    return {
+      buffer,
+      filename: fileName('Putyovka', driver.fullName, 'docx'),
+    };
   }
 
   private delegate(kind: DocKind, client: any = this.prisma): any {

@@ -10,3 +10,9 @@ dist/
 .DS_Store
 coverage/
 .run-logs/
+# Accidental root installs / source docs (canonical templates live in backend/)
+/package.json
+/package-lock.json
+/prisma/
+/*.doc
+/*.docx

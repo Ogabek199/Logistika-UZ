@@ -66,6 +66,26 @@ export class DriverPortalController {
     sendFile(res, { ...file, mime: DOCX_MIME });
   }
 
+  @Post('blanka')
+  async blankaPost(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: DoverennostDto,
+    @Res() res: Response,
+  ) {
+    const file = await this.portal.generateBlanka(req.user.userId, dto);
+    sendFile(res, { ...file, mime: PDF_MIME });
+  }
+
+  @Post('blanka/docx')
+  async blankaDocxPost(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: DoverennostDto,
+    @Res() res: Response,
+  ) {
+    const file = await this.portal.generateBlankaDocx(req.user.userId, dto);
+    sendFile(res, { ...file, mime: DOCX_MIME });
+  }
+
   @Post('doverennost')
   async doverennost(
     @Req() req: { user: { userId: string } },

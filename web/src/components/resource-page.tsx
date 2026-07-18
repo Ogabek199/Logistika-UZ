@@ -21,6 +21,7 @@ export type DriverOption = {
   id: string;
   fullName: string;
   phone: string;
+  plateNumber?: string | null;
 };
 
 type Field = {
@@ -177,7 +178,7 @@ export function ResourcePage<T extends { id: string }>({
             setFormError("");
             setOpen(true);
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {addLabel ?? t("common.add")}
@@ -201,7 +202,7 @@ export function ResourcePage<T extends { id: string }>({
           <TableSkeleton rows={6} cols={columns.length + 1} />
         </div>
       ) : (
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -257,7 +258,7 @@ export function ResourcePage<T extends { id: string }>({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancel")}
             </button>
@@ -300,6 +301,7 @@ export function ResourcePage<T extends { id: string }>({
                       value: d.id,
                       label: d.fullName,
                       hint: d.phone,
+                      detail: d.plateNumber || undefined,
                     }))}
                     onChange={(v) =>
                       setForm((f) => ({ ...f, [field.name]: v }))

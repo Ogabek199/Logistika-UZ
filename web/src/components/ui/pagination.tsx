@@ -43,7 +43,7 @@ export function Pagination({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-2xl border border-line bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-3 rounded-2xl border border-line bg-paper px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
@@ -75,7 +75,7 @@ export function Pagination({
               className={cn(
                 "min-w-10 rounded-xl px-3 py-2 text-sm font-bold transition",
                 p === page
-                  ? "bg-ink text-white shadow"
+                  ? "bg-ink text-white shadow dark:bg-steel"
                   : "border border-line text-ink hover:bg-mist",
               )}
             >

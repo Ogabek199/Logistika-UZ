@@ -36,7 +36,7 @@ export function LoadingScreen({
     return (
       <div
         className={cn(
-          "flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-3xl border border-line bg-white/80 px-6 py-12",
+          "flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-3xl border border-line bg-paper/80 px-6 py-12",
           className,
         )}
       >
@@ -66,7 +66,7 @@ export function LoadingScreen({
   return (
     <div
       className={cn(
-        "flex min-h-screen flex-col items-center justify-center gap-5 bg-[linear-gradient(180deg,#eef3f8_0%,#f7f9fc_40%,#fbfcfe_100%)] px-6",
+        "page-shell flex min-h-screen flex-col items-center justify-center gap-5 px-6",
         className,
       )}
     >
@@ -86,7 +86,7 @@ type TableSkeletonProps = {
 
 export function TableSkeleton({ rows = 6, cols = 5 }: TableSkeletonProps) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-line bg-white shadow-sm">
+    <div className="overflow-hidden rounded-3xl border border-line bg-paper shadow-sm">
       <div className="border-b border-line bg-mist-2/60 px-4 py-3">
         <div className="h-3 w-40 animate-pulse rounded bg-mist" />
       </div>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   Check,
-  CircleStop,
   DollarSign,
   Pencil,
   Plus,
@@ -82,16 +81,6 @@ function isExpired(endDate: string | null | undefined) {
   return new Date(endDate) < new Date();
 }
 
-function statusLabel(row: DazvolRow, t: TFunc) {
-  if (row.status === "FINISHED") {
-    return { label: t("putyovkas.statusFinished"), tone: "bg-mist text-muted" };
-  }
-  if (row.debt > 0) {
-    return { label: t("putyovkas.statusDebtor"), tone: "bg-signal/12 text-signal" };
-  }
-  return { label: t("putyovkas.statusActive"), tone: "bg-ok/12 text-ok" };
-}
-
 export default function DazvollarPage() {
   const t = useT();
   const { dateLocale } = useLocale();
@@ -116,8 +105,6 @@ export default function DazvollarPage() {
   const [payError, setPayError] = useState("");
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [finishId, setFinishId] = useState<string | null>(null);
-  const [activateId, setActivateId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     const params = new URLSearchParams();
@@ -264,28 +251,22 @@ export default function DazvollarPage() {
     setToast(t("common.deleteSuccess"));
   }
 
-  async function confirmFinish() {
-    if (!finishId) return;
-    await api(`/admin/dazvollar/${finishId}`, {
+  async function toggleSubmitted(row: DazvolRow) {
+    const next = row.status === "FINISHED" ? "ACTIVE" : "FINISHED";
+    await api(`/admin/dazvollar/${row.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "FINISHED" }),
+      body: JSON.stringify({ status: next }),
     });
-    setFinishId(null);
     await loadAll();
-  }
-
-  async function confirmActivate() {
-    if (!activateId) return;
-    await api(`/admin/dazvollar/${activateId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "ACTIVE" }),
-    });
-    setActivateId(null);
-    await loadAll();
+    setToast(
+      next === "FINISHED"
+        ? t("dazvols.submitToast")
+        : t("dazvols.unsubmitToast"),
+    );
   }
 
   function rowActions(row: DazvolRow): ActionItem[] {
-    const actions: ActionItem[] = [
+    return [
       {
         id: "payment",
         label: t("putyovkas.addPayment"),
@@ -301,35 +282,15 @@ export default function DazvollarPage() {
         tone: "accent",
         divider: true,
       },
+      {
+        id: "delete",
+        label: t("common.delete"),
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteId(row.id),
+        tone: "danger",
+        divider: true,
+      },
     ];
-
-    if (row.status === "ACTIVE") {
-      actions.push({
-        id: "finish",
-        label: t("putyovkas.finish"),
-        icon: <CircleStop className="h-4 w-4" />,
-        onClick: () => setFinishId(row.id),
-      });
-    } else {
-      actions.push({
-        id: "activate",
-        label: t("putyovkas.activate"),
-        icon: <Check className="h-4 w-4" />,
-        onClick: () => setActivateId(row.id),
-        tone: "accent",
-      });
-    }
-
-    actions.push({
-      id: "delete",
-      label: t("common.delete"),
-      icon: <Trash2 className="h-4 w-4" />,
-      onClick: () => setDeleteId(row.id),
-      tone: "danger",
-      divider: true,
-    });
-
-    return actions;
   }
 
   const filterButtons: { key: FilterKey; label: string }[] = [
@@ -353,7 +314,7 @@ export default function DazvollarPage() {
         <button
           type="button"
           onClick={openAdd}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {t("dazvols.addTitle")}
@@ -369,8 +330,8 @@ export default function DazvollarPage() {
             className={cn(
               "rounded-xl px-4 py-2 text-sm font-bold transition",
               filter === fb.key
-                ? "bg-ink text-white shadow-md"
-                : "border border-line bg-white text-muted hover:border-steel/40 hover:text-ink",
+                ? "bg-ink text-white shadow-md dark:bg-steel"
+                : "border border-line bg-paper text-muted hover:border-steel/40 hover:text-ink",
             )}
           >
             {fb.label}
@@ -389,7 +350,7 @@ export default function DazvollarPage() {
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[1120px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -411,9 +372,7 @@ export default function DazvollarPage() {
                 </td>
               </tr>
             ) : (
-              filteredRows.map((row) => {
-                const st = statusLabel(row, t);
-                return (
+              filteredRows.map((row) => (
                   <tr key={row.id} className="border-t border-line/70 hover:bg-mist-2/60">
                     <td className="px-4 py-3">
                       <Link
@@ -446,9 +405,15 @@ export default function DazvollarPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex rounded-lg px-2.5 py-1 text-xs font-bold", st.tone)}>
-                        {st.label}
-                      </span>
+                      <StatusCell
+                        row={row}
+                        onToggle={() => {
+                          toggleSubmitted(row).catch((e) =>
+                            setError(e instanceof Error ? e.message : t("common.error")),
+                          );
+                        }}
+                        t={t}
+                      />
                     </td>
                     <td className="w-28 px-6 py-3">
                       <div className="flex justify-center">
@@ -456,8 +421,7 @@ export default function DazvollarPage() {
                       </div>
                     </td>
                   </tr>
-                );
-              })
+              ))
             )}
           </tbody>
         </table>
@@ -500,7 +464,7 @@ export default function DazvollarPage() {
             <button
               type="button"
               onClick={() => setPayRow(null)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancelFull")}
             </button>
@@ -561,35 +525,39 @@ export default function DazvollarPage() {
         }}
       />
 
-      <ConfirmModal
-        open={Boolean(finishId)}
-        title={t("putyovkas.finishTitle")}
-        message={t("putyovkas.finishMessage")}
-        confirmLabel={t("putyovkas.finishConfirm")}
-        onCancel={() => setFinishId(null)}
-        onConfirm={() => {
-          confirmFinish().catch((e) =>
-            setError(e instanceof Error ? e.message : t("common.error")),
-          );
-        }}
-      />
-
-      <ConfirmModal
-        open={Boolean(activateId)}
-        title={t("putyovkas.activateTitle")}
-        message={t("putyovkas.activateMessage")}
-        confirmLabel={t("putyovkas.activateConfirm")}
-        danger={false}
-        onCancel={() => setActivateId(null)}
-        onConfirm={() => {
-          confirmActivate().catch((e) =>
-            setError(e instanceof Error ? e.message : t("common.error")),
-          );
-        }}
-      />
-
       <Toast open={Boolean(toast)} message={toast} onClose={() => setToast("")} />
     </div>
+  );
+}
+
+function StatusCell({
+  row,
+  onToggle,
+  t,
+}: {
+  row: DazvolRow;
+  onToggle: () => void;
+  t: TFunc;
+}) {
+  const submitted = row.status === "FINISHED";
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "relative z-10 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:brightness-110",
+        submitted ? "bg-ok" : "bg-danger",
+      )}
+    >
+      {submitted
+        ? t("dazvols.statusSubmitted")
+        : t("dazvols.statusNotSubmitted")}
+    </button>
   );
 }
 
@@ -648,7 +616,7 @@ function DazvolFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+            className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
           >
             {t("common.cancelFull")}
           </button>
@@ -679,6 +647,7 @@ function DazvolFormModal({
                 value: d.id,
                 label: d.fullName,
                 hint: d.phone,
+                detail: d.plateNumber || undefined,
               }))}
               onChange={(v) => setForm((f) => ({ ...f, driverId: v }))}
             />

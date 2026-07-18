@@ -10,6 +10,8 @@ export type SelectOption = {
   value: string;
   label: string;
   hint?: string;
+  /** Extra line (e.g. plate number); also included in search */
+  detail?: string;
 };
 
 type Props = {
@@ -45,13 +47,16 @@ export function SearchSelect({
   const selected = options.find((o) => o.value === value);
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = q.trim().toLowerCase().replace(/\s+/g, "");
     if (!term) return options;
-    return options.filter(
-      (o) =>
-        o.label.toLowerCase().includes(term) ||
-        (o.hint || "").toLowerCase().includes(term),
-    );
+    return options.filter((o) => {
+      const haystack = [o.label, o.hint, o.detail]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .replace(/\s+/g, "");
+      return haystack.includes(term);
+    });
   }, [options, q]);
 
   function updateCoords() {
@@ -101,7 +106,7 @@ export function SearchSelect({
       ? createPortal(
           <div
             id="logistika-search-select-pop"
-            className="fixed z-[500] overflow-hidden rounded-2xl border border-line bg-white shadow-[0_24px_60px_rgba(7,21,37,0.28)]"
+            className="fixed z-[500] overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_24px_60px_rgba(7,21,37,0.28)]"
             style={{
               top: coords.top,
               left: coords.left,
@@ -160,6 +165,11 @@ export function SearchSelect({
                               {o.hint}
                             </span>
                           ) : null}
+                          {o.detail ? (
+                            <span className="block truncate text-xs font-medium text-ink/70">
+                              {o.detail}
+                            </span>
+                          ) : null}
                         </span>
                         {active ? (
                           <Check className="h-4 w-4 shrink-0 text-steel" />
@@ -192,6 +202,9 @@ export function SearchSelect({
               {selected.label}
               {selected.hint ? (
                 <span className="text-muted"> · {selected.hint}</span>
+              ) : null}
+              {selected.detail ? (
+                <span className="text-muted"> · {selected.detail}</span>
               ) : null}
             </span>
           ) : (

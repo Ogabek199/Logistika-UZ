@@ -84,7 +84,7 @@ export default function AdminsPage() {
             setFormError("");
             setOpen(true);
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {t("admins.add")}
@@ -95,7 +95,7 @@ export default function AdminsPage() {
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -157,7 +157,7 @@ export default function AdminsPage() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancel")}
             </button>
@@ -249,7 +249,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block rounded-xl border border-line bg-[#f7fafc] p-2.5 transition focus-within:border-steel/50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
+    <label className="block rounded-xl border border-line bg-field p-2.5 transition focus-within:border-steel/50 focus-within:bg-paper focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
       <span className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
         <span className="text-steel">{icon}</span>
         {label}

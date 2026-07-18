@@ -22,6 +22,108 @@ type SeqRule = { find: RegExp; values: string[] };
 
 const TEXT_NODE_RE = /<w:t(?![a-zA-Z])([^>]*)>([\s\S]*?)<\/w:t>/g;
 
+/**
+ * Oxiridagi bo‘sh paragraflarni olib tashlaydi — Word’da ortiqcha bo‘sh
+ * sahifa chiqishining asosiy sababi.
+ */
+export function stripTrailingEmptyParagraphs(xml: string): string {
+  const bodyOpen = xml.indexOf('<w:body');
+  if (bodyOpen < 0) return xml;
+  const bodyStart = xml.indexOf('>', bodyOpen) + 1;
+  const bodyEnd = xml.lastIndexOf('</w:body>');
+  if (bodyStart <= 0 || bodyEnd < 0) return xml;
+
+  const body = xml.slice(bodyStart, bodyEnd);
+  const sectIdx = body.lastIndexOf('<w:sectPr');
+  if (sectIdx < 0) return xml;
+
+  const main = body.slice(0, sectIdx);
+  const sect = body.slice(sectIdx);
+
+  const spans: Array<{ start: number; end: number }> = [];
+  let i = 0;
+  while (i < main.length) {
+    const start = main.indexOf('<w:p', i);
+    if (start < 0) break;
+    const after = main.slice(start, start + 6);
+    if (!(after.startsWith('<w:p ') || after.startsWith('<w:p>'))) {
+      i = start + 4;
+      continue;
+    }
+    const gt = main.indexOf('>', start);
+    if (gt < 0) break;
+    if (main[gt - 1] === '/') {
+      spans.push({ start, end: gt + 1 });
+      i = gt + 1;
+      continue;
+    }
+    const endTag = main.indexOf('</w:p>', gt);
+    if (endTag < 0) break;
+    spans.push({ start, end: endTag + 6 });
+    i = endTag + 6;
+  }
+
+  /** `<w:t` ni topadi, lekin `<w:tab` / `<w:tbl` ni emas */
+  const findTextNode = (slice: string, from: number) => {
+    let pos = from;
+    while (pos < slice.length) {
+      const a = slice.indexOf('<w:t', pos);
+      if (a < 0) return -1;
+      const next = slice[a + 4];
+      if (next === '>' || next === ' ' || next === '/' || next === '\r' || next === '\n' || next === '\t') {
+        return a;
+      }
+      pos = a + 4;
+    }
+    return -1;
+  };
+
+  const paraHasText = (slice: string) => {
+    let pos = 0;
+    while (pos < slice.length) {
+      const a = findTextNode(slice, pos);
+      if (a < 0) break;
+      const gt = slice.indexOf('>', a);
+      if (gt < 0) break;
+      const b = slice.indexOf('</w:t>', gt);
+      if (b < 0) break;
+      const text = slice.slice(gt + 1, b);
+      // Oddiy space + NBSP va boshqa ko‘rinmas bo‘shliqlar
+      if (/[^\s\u00a0\u2000-\u200b\u202f\u205f\u3000\ufeff]/.test(text)) {
+        return true;
+      }
+      pos = b + 6;
+    }
+    return false;
+  };
+
+  let last = -1;
+  for (let idx = 0; idx < spans.length; idx += 1) {
+    const { start, end } = spans[idx];
+    if (paraHasText(main.slice(start, end))) last = idx;
+  }
+  if (last < 0) {
+    return xml.replace(/<w:lastRenderedPageBreak\s*\/>/g, '');
+  }
+
+  // Oxirgi matnli paragrafdan oldingi bo‘sh paragraflar ham
+  // bo‘sh sahifa berishi mumkin — ularni ham olib tashlaymiz.
+  let keepFrom = last;
+  for (let idx = last - 1; idx >= 0; idx -= 1) {
+    const { start, end } = spans[idx];
+    if (!paraHasText(main.slice(start, end))) keepFrom = idx;
+    else break;
+  }
+
+  const head = keepFrom > 0 ? main.slice(0, spans[keepFrom].start) : '';
+  const tail = main.slice(spans[last].start, spans[last].end);
+  const newBody = head + tail + sect;
+  return (xml.slice(0, bodyStart) + newBody + xml.slice(bodyEnd)).replace(
+    /<w:lastRenderedPageBreak\s*\/>/g,
+    '',
+  );
+}
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -162,12 +264,23 @@ export function renderDocx(
   templateFile: string,
   textRules: TextRule[],
   seqRules: SeqRule[] = [],
+  options?: { forceBlackText?: boolean; stripTrailingEmpty?: boolean },
 ): Buffer {
   const raw = fs.readFileSync(templatePath(templateFile));
   const zip = new PizZip(raw);
   const docXml = zip.file('word/document.xml');
   if (!docXml) throw new Error('document.xml topilmadi');
-  const filled = fillXml(docXml.asText(), textRules, seqRules);
+  let filled = fillXml(docXml.asText(), textRules, seqRules);
+  if (options?.forceBlackText) {
+    // Placeholder qizil matnlarni qora qilish (to‘ldirilgan qiymatlar).
+    filled = filled.replace(
+      /w:color\s+w:val="FF0000"/gi,
+      'w:color w:val="000000"',
+    );
+  }
+  if (options?.stripTrailingEmpty) {
+    filled = stripTrailingEmptyParagraphs(filled);
+  }
   zip.file('word/document.xml', filled);
   return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 }

@@ -348,7 +348,7 @@ export default function IjaraPage() {
         <button
           type="button"
           onClick={openAdd}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {t("rentals.addTitle")}
@@ -364,8 +364,8 @@ export default function IjaraPage() {
             className={cn(
               "rounded-xl px-4 py-2 text-sm font-bold transition",
               filter === fb.key
-                ? "bg-ink text-white shadow-md"
-                : "border border-line bg-white text-muted hover:border-steel/40 hover:text-ink",
+                ? "bg-ink text-white shadow-md dark:bg-steel"
+                : "border border-line bg-paper text-muted hover:border-steel/40 hover:text-ink",
             )}
           >
             {fb.label}
@@ -384,7 +384,7 @@ export default function IjaraPage() {
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[1120px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -497,7 +497,7 @@ export default function IjaraPage() {
             <button
               type="button"
               onClick={() => setPayRow(null)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancelFull")}
             </button>
@@ -645,7 +645,7 @@ function RentalFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+            className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
           >
             {t("common.cancelFull")}
           </button>
@@ -676,6 +676,7 @@ function RentalFormModal({
                 value: d.id,
                 label: d.fullName,
                 hint: d.phone,
+                detail: d.plateNumber || undefined,
               }))}
               onChange={(v) => setForm((f) => ({ ...f, driverId: v }))}
             />

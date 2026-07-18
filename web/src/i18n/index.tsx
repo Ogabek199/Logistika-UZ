@@ -113,7 +113,7 @@ export function LanguageSwitcher({
       ? "border-white/20 bg-white/10"
       : variant === "ink"
         ? "border-white/15 bg-white/8"
-        : "border-line bg-white";
+        : "border-line bg-paper";
 
   const idle =
     variant === "dark" || variant === "ink"
@@ -122,8 +122,8 @@ export function LanguageSwitcher({
 
   const active =
     variant === "dark" || variant === "ink"
-      ? "bg-white text-ink shadow-sm"
-      : "bg-ink text-white shadow-sm";
+      ? "bg-white text-[#071525] shadow-sm"
+      : "bg-ink text-white shadow-sm dark:bg-steel";
 
   return (
     <div

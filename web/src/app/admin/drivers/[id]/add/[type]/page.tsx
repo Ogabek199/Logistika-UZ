@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatMoneyMask, parseMoneyInput } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useT } from "@/i18n";
+
+function isoToday() {
+  return format(new Date(), "yyyy-MM-dd");
+}
 
 type FieldKind = "text" | "money" | "number" | "date" | "textarea";
 
@@ -122,7 +127,13 @@ export default function AddResourcePage() {
     if (!config) return {};
     const obj: Record<string, string | number> = {};
     for (const f of config.fields) {
-      obj[f.name] = f.kind === "money" ? 0 : "";
+      if (f.name === "startDate") {
+        obj[f.name] = isoToday();
+      } else if (f.kind === "money") {
+        obj[f.name] = 0;
+      } else {
+        obj[f.name] = "";
+      }
     }
     return obj;
   }, [config]);
@@ -181,7 +192,7 @@ export default function AddResourcePage() {
 
       <form
         onSubmit={onSubmit}
-        className="space-y-4 rounded-3xl border border-line bg-white p-5 shadow-sm sm:p-6"
+        className="space-y-4 rounded-3xl border border-line bg-paper p-5 shadow-sm sm:p-6"
       >
         {error ? (
           <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger">{error}</p>
@@ -201,8 +212,10 @@ export default function AddResourcePage() {
               />
             ) : f.kind === "date" ? (
               <DatePicker
+                allowManual
                 value={String(form[f.name] ?? "")}
                 onChange={(v) => setForm((s) => ({ ...s, [f.name]: v }))}
+                placeholder="dd.mm.yyyy"
               />
             ) : f.kind === "money" ? (
               <div className="relative">
@@ -252,7 +265,7 @@ export default function AddResourcePage() {
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           <Link
             href="/admin/drivers"
-            className="inline-flex min-w-40 items-center justify-center rounded-xl border border-line bg-white px-6 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
+            className="inline-flex min-w-40 items-center justify-center rounded-xl border border-line bg-paper px-6 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
           >
             {t("common.cancel")}
           </Link>
@@ -281,7 +294,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block rounded-2xl border border-line bg-[#f7fafc] p-3 transition focus-within:border-steel/50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
+    <label className="block rounded-2xl border border-line bg-field p-3 transition focus-within:border-steel/50 focus-within:bg-paper focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
       <span className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
         {icon ? <span className="text-steel">{icon}</span> : null}
         {label}

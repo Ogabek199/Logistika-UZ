@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import {
-  CircleStop,
+  Check,
   DollarSign,
   Pencil,
   Plus,
   Trash2,
-  Check,
 } from "lucide-react";
 import {
   FormEvent,
@@ -31,6 +30,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { LiveSearch } from "@/components/ui/live-search";
 import { Modal, ConfirmModal } from "@/components/ui/modal";
 import { SearchSelect } from "@/components/ui/search-select";
+import { Toast } from "@/components/ui/toast";
 import type { DriverOption } from "@/components/resource-page";
 import { useLocale, useT } from "@/i18n";
 
@@ -91,6 +91,7 @@ export default function TirlarPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [q, setQ] = useState("");
   const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [editRow, setEditRow] = useState<TirRow | null>(null);
@@ -105,8 +106,6 @@ export default function TirlarPage() {
   const [payError, setPayError] = useState("");
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [finishId, setFinishId] = useState<string | null>(null);
-  const [activateId, setActivateId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     const params = new URLSearchParams();
@@ -218,24 +217,16 @@ export default function TirlarPage() {
     await loadAll();
   }
 
-  async function confirmFinish() {
-    if (!finishId) return;
-    await api(`/admin/tirlar/${finishId}`, {
+  async function toggleSubmitted(row: TirRow) {
+    const next = row.status === "FINISHED" ? "ACTIVE" : "FINISHED";
+    await api(`/admin/tirlar/${row.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "FINISHED" }),
+      body: JSON.stringify({ status: next }),
     });
-    setFinishId(null);
     await loadAll();
-  }
-
-  async function confirmActivate() {
-    if (!activateId) return;
-    await api(`/admin/tirlar/${activateId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "ACTIVE" }),
-    });
-    setActivateId(null);
-    await loadAll();
+    setToast(
+      next === "FINISHED" ? t("tirs.submitToast") : t("tirs.unsubmitToast"),
+    );
   }
 
   async function submitPayment(e: FormEvent) {
@@ -248,7 +239,7 @@ export default function TirlarPage() {
         method: "PATCH",
         body: JSON.stringify({
           paid: payRow.paid + payAmount,
-          note: payNote || payRow.note,
+          ...(payNote.trim() ? { paymentNote: payNote.trim() } : {}),
         }),
       });
       setPayRow(null);
@@ -261,7 +252,7 @@ export default function TirlarPage() {
   }
 
   function rowActions(row: TirRow): ActionItem[] {
-    const actions: ActionItem[] = [
+    return [
       {
         id: "payment",
         label: t("tirs.addPayment"),
@@ -276,37 +267,15 @@ export default function TirlarPage() {
         onClick: () => openEdit(row),
         tone: "accent",
       },
+      {
+        id: "delete",
+        label: t("common.delete"),
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteId(row.id),
+        tone: "danger",
+        divider: true,
+      },
     ];
-
-    if (row.status === "ACTIVE") {
-      actions.push({
-        id: "finish",
-        label: t("tirs.deactivate"),
-        icon: <CircleStop className="h-4 w-4" />,
-        onClick: () => setFinishId(row.id),
-        divider: true,
-      });
-    } else {
-      actions.push({
-        id: "activate",
-        label: t("tirs.activate"),
-        icon: <Check className="h-4 w-4" />,
-        onClick: () => setActivateId(row.id),
-        tone: "accent",
-        divider: true,
-      });
-    }
-
-    actions.push({
-      id: "delete",
-      label: t("common.delete"),
-      icon: <Trash2 className="h-4 w-4" />,
-      onClick: () => setDeleteId(row.id),
-      tone: "danger",
-      divider: true,
-    });
-
-    return actions;
   }
 
   const filterButtons: { key: FilterKey; label: string }[] = [
@@ -329,7 +298,7 @@ export default function TirlarPage() {
         <button
           type="button"
           onClick={openAdd}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {t("tirs.addTitle")}
@@ -345,8 +314,8 @@ export default function TirlarPage() {
             className={cn(
               "rounded-xl px-4 py-2 text-sm font-bold transition",
               filter === fb.key
-                ? "bg-ink text-white shadow-md"
-                : "border border-line bg-white text-muted hover:border-steel/40 hover:text-ink",
+                ? "bg-ink text-white shadow-md dark:bg-steel"
+                : "border border-line bg-paper text-muted hover:border-steel/40 hover:text-ink",
             )}
           >
             {fb.label}
@@ -365,7 +334,7 @@ export default function TirlarPage() {
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[1120px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -441,8 +410,11 @@ export default function TirlarPage() {
                   <td className="px-4 py-3">
                     <StatusCell
                       row={row}
-                      onFinish={() => setFinishId(row.id)}
-                      onActivate={() => setActivateId(row.id)}
+                      onToggle={() => {
+                        toggleSubmitted(row).catch((e) =>
+                          setError(e instanceof Error ? e.message : t("common.error")),
+                        );
+                      }}
                       t={t}
                     />
                   </td>
@@ -495,7 +467,7 @@ export default function TirlarPage() {
             <button
               type="button"
               onClick={() => setPayRow(null)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancelFull")}
             </button>
@@ -568,84 +540,37 @@ export default function TirlarPage() {
         }}
       />
 
-      <ConfirmModal
-        open={Boolean(finishId)}
-        title={t("tirs.deactivateTitle")}
-        message={t("tirs.deactivateMessage")}
-        confirmLabel={t("tirs.deactivateConfirm")}
-        onCancel={() => setFinishId(null)}
-        onConfirm={() => {
-          confirmFinish().catch((e) =>
-            setError(e instanceof Error ? e.message : t("common.error")),
-          );
-        }}
-      />
-
-      <ConfirmModal
-        open={Boolean(activateId)}
-        title={t("tirs.activateTitle")}
-        message={t("tirs.activateMessage")}
-        confirmLabel={t("tirs.activateConfirm")}
-        danger={false}
-        onCancel={() => setActivateId(null)}
-        onConfirm={() => {
-          confirmActivate().catch((e) =>
-            setError(e instanceof Error ? e.message : t("common.error")),
-          );
-        }}
-      />
+      <Toast open={Boolean(toast)} message={toast} onClose={() => setToast("")} />
     </div>
   );
 }
 
 function StatusCell({
   row,
-  onFinish,
-  onActivate,
+  onToggle,
   t,
 }: {
   row: TirRow;
-  onFinish: () => void;
-  onActivate: () => void;
+  onToggle: () => void;
   t: TFunc;
 }) {
-  if (row.status === "FINISHED") {
-    return (
-      <div className="space-y-1.5">
-        <span className="inline-flex rounded-lg bg-[#f5c842]/20 px-2.5 py-1 text-xs font-bold text-[#9a7b00]">
-          {t("tirs.statusInactive")}
-        </span>
-        <button
-          type="button"
-          onClick={onActivate}
-          className="block rounded-lg bg-[#1f7a56]/10 px-2 py-1 text-xs font-bold text-[#1f7a56] hover:bg-[#1f7a56]/20"
-        >
-          {t("tirs.activate")}
-        </button>
-      </div>
-    );
-  }
+  const submitted = row.status === "FINISHED";
 
   return (
-    <div className="space-y-1.5">
-      <span
-        className={cn(
-          "inline-flex rounded-lg px-2.5 py-1 text-xs font-bold",
-          row.debt > 0
-            ? "bg-[#e8913a]/20 text-[#b5650a]"
-            : "bg-[#1f7a56]/15 text-[#1f7a56]",
-        )}
-      >
-        {row.debt > 0 ? t("tirs.statusDebtor") : t("tirs.statusActive")}
-      </span>
-      <button
-        type="button"
-        onClick={onFinish}
-        className="block rounded-lg bg-[#f5c842]/20 px-2 py-1 text-xs font-bold text-[#9a7b00] hover:bg-[#f5c842]/35"
-      >
-        {t("tirs.deactivate")}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "relative z-10 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:brightness-110",
+        submitted ? "bg-ok" : "bg-danger",
+      )}
+    >
+      {submitted ? t("tirs.statusSubmitted") : t("tirs.statusNotSubmitted")}
+    </button>
   );
 }
 
@@ -685,7 +610,7 @@ function TirFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+            className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
           >
             {t("common.cancelFull")}
           </button>
@@ -716,6 +641,7 @@ function TirFormModal({
                 value: d.id,
                 label: d.fullName,
                 hint: d.phone,
+                detail: d.plateNumber || undefined,
               }))}
               onChange={(v) => setForm((f) => ({ ...f, driverId: v }))}
             />

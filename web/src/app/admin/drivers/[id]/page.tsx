@@ -18,8 +18,6 @@ import {
   DollarSign,
   Check,
   Trash2,
-  Copy,
-  Link2,
 } from "lucide-react";
 import { api, downloadFile } from "@/lib/api";
 import {
@@ -28,10 +26,12 @@ import {
   formatMoneyMask,
   parseMoneyInput,
 } from "@/lib/utils";
+import { UZ_REGIONS, regionRu, regionRuFem } from "@/lib/regions";
 import { LoadingScreen } from "@/components/loading-screen";
 import { ConfirmModal, Modal } from "@/components/ui/modal";
 import { Toast } from "@/components/ui/toast";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Select } from "@/components/ui/select";
 import { DriverDocFormModal } from "@/components/driver-doc-form-modal";
 import { ActionMenu, type ActionItem } from "@/components/ui/action-menu";
 import { DRIVER_DOC_CONFIGS } from "@/lib/driver-doc-config";
@@ -61,6 +61,8 @@ type DriverDetail = {
   phone: string;
   vehicle: string | null;
   plateNumber: string | null;
+  trailer: string | null;
+  trailerNo: string | null;
   passportSeries: string | null;
   telegramChatId: string | null;
   telegramLinkedAt: string | null;
@@ -145,21 +147,28 @@ export default function DriverDetailPage() {
   const [paymentError, setPaymentError] = useState("");
   const [deleteDoc, setDeleteDoc] = useState<{ kind: string; id: string } | null>(null);
 
-  const [tgOpen, setTgOpen] = useState(false);
-  const [tgMessage, setTgMessage] = useState("");
-  const [tgTemplate, setTgTemplate] = useState<"debt" | "custom">("debt");
-  const [tgLoading, setTgLoading] = useState(false);
-  const [tgError, setTgError] = useState("");
-  const [tgLink, setTgLink] = useState<{
-    url: string;
-    linked: boolean;
-    chatIdMasked: string | null;
-  } | null>(null);
-  const [tgLinkLoading, setTgLinkLoading] = useState(false);
-
   const [dovOpen, setDovOpen] = useState(false);
-  const [dovForm, setDovForm] = useState({ passport: "", startDate: "", endDate: "" });
+  const [dovKind, setDovKind] = useState<"doverennost" | "blanka">("doverennost");
+  const [dovForm, setDovForm] = useState({
+    lastName: "",
+    firstName: "",
+    patronymic: "",
+    passport: "",
+    passportIssued: "",
+    regionId: "",
+    startDate: "",
+    endDate: "",
+  });
   const [dovLoading, setDovLoading] = useState(false);
+
+  const regionOptions = useMemo(
+    () =>
+      UZ_REGIONS.map((r) => ({
+        value: r.id,
+        label: t(`regions.${r.id}`),
+      })),
+    [t],
+  );
 
   const load = useCallback(async () => {
     if (!params.id) return;
@@ -264,117 +273,62 @@ export default function DriverDetailPage() {
     }
   }
 
-  function debtPreview() {
-    if (!data) return "";
-    const now = new Date();
-    const date = now.toLocaleDateString(dateLocale, {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      timeZone: "Asia/Tashkent",
-    });
-    const time = now.toLocaleTimeString(dateLocale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "Asia/Tashkent",
-    });
-    return [
-      "📢 Logistika UZ",
-      `📅 ${date}  🕐 ${time}`,
-      "",
-      data.fullName,
-      data.phone,
-      `${t("drivers.totalDebt")}: ${formatMoney(totalDebt, dateLocale)} ${t("common.sum")}`,
-      "",
-      "Logistika UZ",
-    ].join("\n");
-  }
-
-  async function openTelegram() {
-    if (!data) return;
-    setTgError("");
-    setTgTemplate("debt");
-    setTgMessage("");
-    setTgOpen(true);
-    setTgLinkLoading(true);
-    try {
-      const link = await api<{
-        url: string;
-        linked: boolean;
-        chatIdMasked: string | null;
-      }>(`/admin/drivers/${data.id}/telegram-link`);
-      setTgLink(link);
-    } catch (err) {
-      setTgLink(null);
-      setTgError(err instanceof Error ? err.message : t("common.error"));
-    } finally {
-      setTgLinkLoading(false);
-    }
-  }
-
-  async function copyTelegramLink() {
-    if (!tgLink?.url) return;
-    try {
-      await navigator.clipboard.writeText(tgLink.url);
-      showToast(t("drivers.telegramLinkCopied"));
-    } catch {
-      showToast(t("common.error"), "error");
-    }
-  }
-
-  async function submitTelegram(e: FormEvent) {
-    e.preventDefault();
-    if (!data) return;
-    setTgLoading(true);
-    setTgError("");
-    try {
-      await api(`/admin/drivers/${data.id}/telegram`, {
-        method: "POST",
-        body: JSON.stringify(
-          tgTemplate === "debt"
-            ? { template: "debt" }
-            : { template: "custom", message: tgMessage },
-        ),
-      });
-      setTgOpen(false);
-      showToast(t("drivers.telegramSent"));
-    } catch (err) {
-      setTgError(err instanceof Error ? err.message : t("common.error"));
-    } finally {
-      setTgLoading(false);
-    }
-  }
-
   async function downloadBlanka() {
-    if (!data) return;
-    try {
-      await downloadFile(`/admin/drivers/${data.id}/blanka/docx`, {}, "blanka.docx");
-      showToast(t("drivers.downloadStarted"));
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : t("common.error"), "error");
-    }
+    openPassportDoc("blanka");
   }
 
-  function openDoverennost() {
+  function openPassportDoc(kind: "doverennost" | "blanka") {
     if (!data) return;
+    const parts = data.fullName.trim().split(/\s+/).filter(Boolean);
+    setDovKind(kind);
     setDovForm({
+      lastName: parts[0] || "",
+      firstName: parts[1] || "",
+      patronymic: parts.slice(2).join(" ") || "",
       passport: data.passportSeries || "",
+      passportIssued: "",
+      regionId: "",
       startDate: isoToday(0),
       endDate: isoToday(2),
     });
     setDovOpen(true);
   }
 
+  function openDoverennost() {
+    openPassportDoc("doverennost");
+  }
+
   async function submitDoverennost(e: FormEvent) {
     e.preventDefault();
     if (!data) return;
+    if (!dovForm.regionId) {
+      showToast(t("doverennost.regionRequired"), "error");
+      return;
+    }
+    if (!dovForm.startDate || !dovForm.endDate) {
+      showToast(t("doverennost.periodRequired"), "error");
+      return;
+    }
     setDovLoading(true);
     try {
+      const { regionId, ...rest } = dovForm;
+      const endpoint =
+        dovKind === "blanka"
+          ? `/admin/drivers/${data.id}/blanka/docx`
+          : `/admin/drivers/${data.id}/doverennost/docx`;
       await downloadFile(
-        `/admin/drivers/${data.id}/doverennost/docx`,
-        { method: "POST", body: JSON.stringify(dovForm) },
-        "doverennost.docx",
+        endpoint,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ...rest,
+            region:
+              dovKind === "blanka"
+                ? regionRuFem(regionId)
+                : regionRu(regionId),
+          }),
+        },
+        dovKind === "blanka" ? "blanka.docx" : "doverennost.docx",
       );
       setDovOpen(false);
       showToast(t("drivers.downloadStarted"));
@@ -412,6 +366,9 @@ export default function DriverDetailPage() {
   const vehicleLine = [data.vehicle, data.plateNumber ? `№ ${data.plateNumber}` : ""]
     .filter(Boolean)
     .join(" ");
+  const trailerLine = [data.trailer, data.trailerNo ? `№ ${data.trailerNo}` : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="animate-rise space-y-6">
@@ -421,27 +378,27 @@ export default function DriverDetailPage() {
           <p className="mt-1 text-muted">
             {data.phone}
             {vehicleLine ? ` · ${vehicleLine}` : ""}
+            {trailerLine ? ` · ${trailerLine}` : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/admin/drivers/${data.id}/edit`}
-            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
           >
             <Pencil className="h-4 w-4" />
             {t("common.edit")}
           </Link>
-          <button
-            type="button"
-            onClick={openTelegram}
-            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          <Link
+            href={`/admin/telegram?driverId=${data.id}`}
+            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
           >
             <Send className="h-4 w-4" />
             {t("drivers.sendTelegram")}
-          </button>
+          </Link>
           <Link
             href="/admin/drivers"
-            className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
+            className="inline-flex items-center gap-2 rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
           >
             <ArrowLeft className="h-4 w-4" />
             {t("common.back")}
@@ -450,9 +407,9 @@ export default function DriverDetailPage() {
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <div className="rounded-3xl border border-line bg-white p-6 shadow-sm">
+        <div className="rounded-3xl border border-line bg-paper p-6 shadow-sm">
           <div className="flex flex-wrap items-start gap-4">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-ink text-3xl font-extrabold text-white">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-ink text-3xl font-extrabold text-white dark:bg-steel">
               {initial}
             </div>
             <div className="min-w-0 flex-1">
@@ -787,7 +744,7 @@ export default function DriverDetailPage() {
             <button
               type="button"
               onClick={() => setPaymentDoc(null)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancelFull")}
             </button>
@@ -861,141 +818,20 @@ export default function DriverDetailPage() {
       </Modal>
 
       <Modal
-        open={tgOpen}
-        onClose={() => setTgOpen(false)}
-        title={t("drivers.telegramTitle")}
-        subtitle={data.fullName}
-        footer={
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={() => setTgOpen(false)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
-            >
-              {t("common.cancelFull")}
-            </button>
-            <button
-              form="telegram-form"
-              type="submit"
-              disabled={
-                tgLoading ||
-                tgLinkLoading ||
-                !(tgLink?.linked || data.telegramChatId) ||
-                (tgTemplate === "custom" && !tgMessage.trim())
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-60"
-            >
-              <Send className="h-4 w-4" />
-              {tgLoading ? t("common.saving") : t("drivers.sendTelegram")}
-            </button>
-          </div>
-        }
-      >
-        <form id="telegram-form" onSubmit={submitTelegram} className="space-y-4">
-          {tgError ? (
-            <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
-              {tgError}
-            </p>
-          ) : null}
-
-          <div className="rounded-2xl border border-line bg-mist-2/50 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-muted" />
-                <span
-                  className={cn(
-                    "rounded-lg px-2.5 py-1 text-xs font-bold",
-                    tgLink?.linked || data.telegramChatId
-                      ? "bg-ok/12 text-ok"
-                      : "bg-signal/12 text-signal",
-                  )}
-                >
-                  {tgLinkLoading
-                    ? t("common.loading")
-                    : tgLink?.linked || data.telegramChatId
-                      ? t("drivers.telegramLinked")
-                      : t("drivers.telegramNotLinked")}
-                </span>
-                {tgLink?.chatIdMasked ? (
-                  <span className="text-xs text-muted">{tgLink.chatIdMasked}</span>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={copyTelegramLink}
-                disabled={!tgLink?.url || tgLinkLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-mist disabled:opacity-50"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                {t("drivers.copyTelegramLink")}
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-muted">{t("drivers.telegramLinkHint")}</p>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setTgTemplate("debt")}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-left text-sm font-bold transition",
-                tgTemplate === "debt"
-                  ? "border-ink bg-ink text-white"
-                  : "border-line bg-white text-ink hover:bg-mist",
-              )}
-            >
-              {t("drivers.telegramTemplateDebt")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTgTemplate("custom")}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-left text-sm font-bold transition",
-                tgTemplate === "custom"
-                  ? "border-ink bg-ink text-white"
-                  : "border-line bg-white text-ink hover:bg-mist",
-              )}
-            >
-              {t("drivers.telegramTemplateCustom")}
-            </button>
-          </div>
-
-          {tgTemplate === "debt" ? (
-            <div className="rounded-2xl border border-line bg-mist-2/50 p-3">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
-                {t("drivers.telegramPreview")}
-              </span>
-              <pre className="whitespace-pre-wrap font-sans text-sm text-ink">
-                {debtPreview()}
-              </pre>
-            </div>
-          ) : (
-            <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
-                {t("drivers.telegramMessage")}
-              </span>
-              <textarea
-                className="input-field min-h-32"
-                required
-                value={tgMessage}
-                onChange={(e) => setTgMessage(e.target.value)}
-              />
-            </label>
-          )}
-        </form>
-      </Modal>
-
-      <Modal
         open={dovOpen}
         onClose={() => setDovOpen(false)}
-        title={t("drivers.doverennostTitle")}
+        title={
+          dovKind === "blanka"
+            ? t("drivers.blankaTitle")
+            : t("drivers.doverennostTitle")
+        }
         subtitle={data.fullName}
         footer={
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => setDovOpen(false)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancelFull")}
             </button>
@@ -1003,23 +839,83 @@ export default function DriverDetailPage() {
               form="doverennost-docx-form"
               type="submit"
               disabled={dovLoading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-6 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:brightness-110 disabled:opacity-60"
             >
               <Download className="h-4 w-4" />
-              {dovLoading ? t("common.loading") : t("drivers.download")}
+              {dovLoading
+                ? t("common.loading")
+                : dovKind === "blanka"
+                  ? t("doverennost.downloadBlanka")
+                  : t("drivers.download")}
             </button>
           </div>
         }
       >
         <form id="doverennost-docx-form" onSubmit={submitDoverennost} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
+                {t("doverennost.lastName")}
+              </span>
+              <input
+                className="input-field"
+                value={dovForm.lastName}
+                onChange={(e) => setDovForm((f) => ({ ...f, lastName: e.target.value }))}
+              />
+            </label>
+            <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
+                {t("doverennost.firstName")}
+              </span>
+              <input
+                className="input-field"
+                value={dovForm.firstName}
+                onChange={(e) => setDovForm((f) => ({ ...f, firstName: e.target.value }))}
+              />
+            </label>
+            <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
+                {t("doverennost.patronymic")}
+              </span>
+              <input
+                className="input-field"
+                value={dovForm.patronymic}
+                onChange={(e) => setDovForm((f) => ({ ...f, patronymic: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
+                {t("drivers.passportFull")}
+              </span>
+              <input
+                className="input-field"
+                value={dovForm.passport}
+                onChange={(e) => setDovForm((f) => ({ ...f, passport: e.target.value }))}
+              />
+            </label>
+            <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
+                {t("doverennost.region")}
+              </span>
+              <Select
+                value={dovForm.regionId}
+                onChange={(v) => setDovForm((f) => ({ ...f, regionId: v }))}
+                options={regionOptions}
+                placeholder={t("doverennost.regionPlaceholder")}
+              />
+            </label>
+          </div>
           <label className="block rounded-2xl border border-line bg-mist-2/50 p-3">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted">
-              {t("drivers.passportFull")}
+              {t("doverennost.passportIssued")}
             </span>
-            <input
-              className="input-field"
-              value={dovForm.passport}
-              onChange={(e) => setDovForm((f) => ({ ...f, passport: e.target.value }))}
+            <DatePicker
+              allowManual
+              value={dovForm.passportIssued}
+              onChange={(v) => setDovForm((f) => ({ ...f, passportIssued: v }))}
+              placeholder="dd.mm.yyyy"
             />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -1089,7 +985,7 @@ function PaymentStat({
 const ACCENT_STYLES = {
   signal: { icon: "bg-signal/12 text-signal", hover: "hover:border-signal/20" },
   steel: { icon: "bg-steel/12 text-steel", hover: "hover:border-steel/20" },
-  ink: { icon: "bg-ink/8 text-ink", hover: "hover:border-ink/15" },
+  ink: { icon: "bg-brand/8 text-ink", hover: "hover:border-brand/15" },
   ok: { icon: "bg-ok/12 text-ok", hover: "hover:border-ok/20" },
 } as const;
 
@@ -1114,7 +1010,7 @@ function SummaryCard({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "rounded-2xl border border-line bg-white p-4 text-left shadow-sm transition",
+        "rounded-2xl border border-line bg-paper p-4 text-left shadow-sm transition",
         onClick && "cursor-pointer hover:shadow-md",
         onClick && styles.hover,
       )}
@@ -1146,13 +1042,13 @@ function DocTable<T extends { id: string }>({
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   return (
-    <section className="rounded-3xl border border-line bg-white shadow-sm">
+    <section className="rounded-3xl border border-line bg-paper shadow-sm">
       <div className="flex items-center justify-between border-b border-line px-5 py-4">
         <h3 className="text-lg font-bold text-ink">{title}</h3>
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-mist"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-paper px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-mist"
         >
           <Plus className="h-3.5 w-3.5" />
           {t("common.add")}

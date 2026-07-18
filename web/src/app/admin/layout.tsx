@@ -14,24 +14,30 @@ import {
   Wallet,
   UserCog,
   LogOut,
+  Send,
+  ScrollText,
 } from "lucide-react";
 import { clearSession, hydrateUser, isServerUnavailable, type AuthUser } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import { LanguageSwitcher, useT } from "@/i18n";
 import { BrandLogo } from "@/components/brand-logo";
 import { LoadingScreen } from "@/components/loading-screen";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ConfirmModal } from "@/components/ui/modal";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useT();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const nav = useMemo(
     () => [
       { href: "/admin", label: t("nav.dashboard"), icon: LayoutDashboard },
       { href: "/admin/drivers", label: t("nav.drivers"), icon: Users },
+      { href: "/admin/telegram", label: t("nav.telegram"), icon: Send },
       { href: "/admin/putyovkalar", label: t("nav.putyovkas"), icon: FileText },
+      { href: "/admin/doverennost", label: t("nav.doverennost"), icon: ScrollText },
       { href: "/admin/tirlar", label: t("nav.tirs"), icon: Truck },
       { href: "/admin/dazvollar", label: t("nav.dazvols"), icon: Stamp },
       { href: "/admin/litsenziyalar", label: t("nav.licenses"), icon: Shield },
@@ -67,21 +73,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#eef3f8_0%,#f7f9fc_40%,#fbfcfe_100%)]">
-      <div className="flex min-h-screen w-full">
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-ink px-4 py-6 text-white md:flex">
+    <div className="page-shell relative min-h-screen">
+      <div className="admin-sidebar-glow" aria-hidden />
+      <div className="relative z-10 flex min-h-screen w-full">
+        <aside className="admin-sidebar hidden w-64 shrink-0 flex-col px-4 py-6 md:flex">
           <div className="mb-8 flex items-center gap-3 px-2">
-            <BrandLogo size={44} priority />
+            <BrandLogo size={48} priority />
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">
+              <p className="sidebar-muted text-[10px] font-semibold uppercase tracking-[0.25em]">
                 {t("nav.control")}
               </p>
-              <h1 className="mt-0.5 text-xl font-extrabold tracking-tight">
+              <h1 className="mt-0.5 text-[13px] font-extrabold leading-snug tracking-tight">
                 {t("common.brand")}
               </h1>
             </div>
           </div>
-          <nav className="flex flex-1 flex-col gap-1">
+          <nav className="flex flex-1 flex-col gap-1.5">
             {nav.map((item) => {
               const active =
                 pathname === item.href ||
@@ -91,24 +98,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-                    active
-                      ? "bg-white/12 text-white shadow-inner"
-                      : "text-white/65 hover:bg-white/6 hover:text-white",
-                  )}
+                  data-active={active ? "true" : undefined}
+                  className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4 shrink-0 opacity-90" />
                   {item.label}
                 </Link>
               );
             })}
           </nav>
-          <div className="mt-4 space-y-3 px-1">
+          <div className="sidebar-divider mt-4 space-y-3 border-t px-1 pt-4">
             <button
               type="button"
-              onClick={logout}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/65 transition hover:bg-white/6 hover:text-white"
+              onClick={() => setLogoutOpen(true)}
+              className="sidebar-nav-link flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
             >
               <LogOut className="h-4 w-4" />
               {t("common.logout")}
@@ -117,7 +120,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-line/70 bg-white/70 px-5 py-4 backdrop-blur md:px-8">
+          <header className="flex items-center justify-between border-b border-line/70 bg-paper/80 px-5 py-4 backdrop-blur md:px-8">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
                 {t("nav.adminPanel")}
@@ -127,11 +130,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <LanguageSwitcher />
               <button
                 type="button"
-                onClick={logout}
-                className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink md:hidden"
+                onClick={() => setLogoutOpen(true)}
+                className="rounded-xl border border-line bg-paper px-3 py-2 text-sm font-semibold text-ink md:hidden"
               >
                 {t("common.logout")}
               </button>
@@ -140,6 +144,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <main className="flex-1 px-5 py-6 md:px-8 md:py-8">{children}</main>
         </div>
       </div>
+
+      <ConfirmModal
+        open={logoutOpen}
+        title={t("common.logoutConfirmTitle")}
+        message={t("common.logoutConfirmMessage")}
+        confirmLabel={t("common.logout")}
+        onConfirm={logout}
+        onCancel={() => setLogoutOpen(false)}
+      />
     </div>
   );
 }

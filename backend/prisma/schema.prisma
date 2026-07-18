@@ -24,6 +24,8 @@ model Driver {
   phone         String   @unique
   vehicle       String?
   plateNumber   String?
+  trailer       String?
+  trailerNo     String?
   passwordHash  String
   passportSeries String?
   telegramChatId   String?

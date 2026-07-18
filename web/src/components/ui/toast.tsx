@@ -30,9 +30,9 @@ export function Toast({
 
   const tones = {
     success:
-      "border-ok/25 bg-white text-ink shadow-[0_16px_48px_rgba(31,138,91,0.18)]",
-    error: "border-danger/25 bg-white text-ink shadow-lg",
-    info: "border-steel/25 bg-white text-ink shadow-lg",
+      "border-ok/25 bg-paper text-ink shadow-[0_16px_48px_rgba(31,138,91,0.18)]",
+    error: "border-danger/25 bg-paper text-ink shadow-lg",
+    info: "border-steel/25 bg-paper text-ink shadow-lg",
   };
 
   return createPortal(

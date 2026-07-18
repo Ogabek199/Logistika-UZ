@@ -11,7 +11,7 @@ import {
   CircleStop,
   Check,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, downloadFile } from "@/lib/api";
 import {
   cn,
   formatMoney,
@@ -75,10 +75,16 @@ function isExpired(endDate: string | null | undefined) {
   return new Date(endDate) < new Date();
 }
 
-/** Word hujjat yuklab olish — keyinroq to'ldiriladi */
-async function downloadPutyovkaWord(_row: PutyovkaRow) {
-  // TODO: backend word endpoint va shablon qo'shilganda implement qilinadi
-  console.info("[Putyovka Word] Yuklab olish funksiyasi hali tayyor emas");
+async function downloadPutyovkaWord(row: PutyovkaRow) {
+  const slug = (row.driverName || "putyovka")
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, "_")
+    .replace(/^_+|_+$/g, "");
+  await downloadFile(
+    `/admin/putyovkalar/${row.id}/docx`,
+    {},
+    `Putyovka_${slug || "haydovchi"}.docx`,
+  );
 }
 
 export default function PutyovkalarPage() {
@@ -91,7 +97,7 @@ export default function PutyovkalarPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [q, setQ] = useState("");
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
+  const [toast, setToast] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [editRow, setEditRow] = useState<PutyovkaRow | null>(null);
@@ -104,7 +110,6 @@ export default function PutyovkalarPage() {
   const [payNote, setPayNote] = useState("");
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState("");
-  const [toast, setToast] = useState("");
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [finishId, setFinishId] = useState<string | null>(null);
@@ -249,7 +254,10 @@ export default function PutyovkalarPage() {
       const newPaid = payRow.paid + payAmount;
       await api(`/admin/putyovkalar/${payRow.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ paid: newPaid, note: payNote || payRow.note }),
+        body: JSON.stringify({
+          paid: newPaid,
+          ...(payNote.trim() ? { paymentNote: payNote.trim() } : {}),
+        }),
       });
       setToast(
         t("putyovkas.paymentSuccess", {
@@ -269,8 +277,7 @@ export default function PutyovkalarPage() {
   async function handleWordDownload(row: PutyovkaRow) {
     try {
       await downloadPutyovkaWord(row);
-      setInfo(t("putyovkas.wordPending"));
-      setTimeout(() => setInfo(""), 4000);
+      setToast(t("drivers.downloadStarted"));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -344,7 +351,7 @@ export default function PutyovkalarPage() {
         <button
           type="button"
           onClick={openAdd}
-          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-steel shadow-lg transition hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           {t("putyovkas.addTitle")}
@@ -360,8 +367,8 @@ export default function PutyovkalarPage() {
             className={cn(
               "rounded-xl px-4 py-2 text-sm font-bold transition",
               filter === fb.key
-                ? "bg-ink text-white shadow-md"
-                : "border border-line bg-white text-muted hover:border-steel/40 hover:text-ink",
+                ? "bg-ink text-white shadow-md dark:bg-steel"
+                : "border border-line bg-paper text-muted hover:border-steel/40 hover:text-ink",
             )}
           >
             {fb.label}
@@ -379,11 +386,8 @@ export default function PutyovkalarPage() {
       {error ? (
         <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
-      {info ? (
-        <p className="rounded-xl bg-steel/10 px-4 py-3 text-sm font-medium text-steel">{info}</p>
-      ) : null}
 
-      <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-line bg-paper shadow-sm">
         <table className="w-full min-w-[1200px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <tr>
@@ -515,7 +519,7 @@ export default function PutyovkalarPage() {
             <button
               type="button"
               onClick={() => setPayRow(null)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+              className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
             >
               {t("common.cancelFull")}
             </button>
@@ -739,7 +743,7 @@ function PutyovkaFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold text-ink"
+            className="rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold text-ink"
           >
             {t("common.cancelFull")}
           </button>
@@ -770,6 +774,7 @@ function PutyovkaFormModal({
                 value: d.id,
                 label: d.fullName,
                 hint: d.phone,
+                detail: d.plateNumber || undefined,
               }))}
               onChange={(v) => setForm((f) => ({ ...f, driverId: v }))}
             />

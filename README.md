@@ -1,4 +1,4 @@
-# Logistika UZ
+# OOO "MUSFIRA SAVDO TRANS"
 
 Haydovchi hujjatlari, qarz va muddatlarni boshqarish tizimi.
 

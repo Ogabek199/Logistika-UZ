@@ -109,7 +109,7 @@ export class TelegramReminderService {
         `Jami qarz: ${totalDebt.toLocaleString('uz-UZ')} so'm`,
         '',
         'Iltimos, to‘lovni amalga oshiring.',
-        'Logistika UZ',
+        'OOO "MUSFIRA SAVDO TRANS"',
       ].join('\n');
 
       try {
@@ -190,7 +190,7 @@ export class TelegramReminderService {
         `${label} muddati tugashiga <b>${item.days}</b> kun qoldi.`,
         `Tugash sanasi: ${end}`,
         '',
-        'Logistika UZ',
+        'OOO "MUSFIRA SAVDO TRANS"',
       ].join('\n');
 
       try {

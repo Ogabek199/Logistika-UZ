@@ -17,6 +17,14 @@ export class CreateDriverDto {
   @IsString()
   plateNumber?: string;
 
+  @IsOptional()
+  @IsString()
+  trailer?: string;
+
+  @IsOptional()
+  @IsString()
+  trailerNo?: string;
+
   @IsString()
   @MinLength(4)
   password!: string;
@@ -46,6 +54,14 @@ export class UpdateDriverDto {
   @IsOptional()
   @IsString()
   plateNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  trailer?: string;
+
+  @IsOptional()
+  @IsString()
+  trailerNo?: string;
 
   @IsOptional()
   @IsString()

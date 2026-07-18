@@ -16,6 +16,41 @@ const NAME_SOURCES = [
   /Aliev\s+Mukhammadrizo\s+Ahrorjon\s+Ugli/g,
 ];
 
+/** Blanka11 qizil sanalar: «09»07.2026 */
+function formatBlankaDate(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `«${dd}»${mm}.${d.getFullYear()}`;
+}
+
+function formatDotDate(iso?: string | null): string | null {
+  if (!iso) return null;
+  // already dd.MM.yyyy
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(iso.trim())) return iso.trim();
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+
+function contractNo(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${mm}/${d.getFullYear()}`;
+}
+
+function blankaRegionPhrase(region: string) {
+  const r = region.trim();
+  if (/область|г\.|Республик/i.test(r)) return r;
+  return `${r} область`;
+}
+
 function normalizePhone(input: string): string {
   const digits = input.replace(/\D/g, '');
   if (digits.startsWith('998') && digits.length === 12) return `+${digits}`;
@@ -41,6 +76,8 @@ function mapDriverRow(d: {
   phone: string;
   vehicle: string | null;
   plateNumber: string | null;
+  trailer: string | null;
+  trailerNo: string | null;
   passportSeries: string | null;
   createdAt: Date;
   putyovkas: Array<{ price: number; paid: number }>;
@@ -64,6 +101,8 @@ function mapDriverRow(d: {
     phone: d.phone,
     vehicle: d.vehicle,
     plateNumber: d.plateNumber,
+    trailer: d.trailer,
+    trailerNo: d.trailerNo,
     passportSeries: d.passportSeries,
     createdAt: d.createdAt,
     totalDebt,
@@ -80,6 +119,8 @@ function buildWhere(q?: string) {
           { phone: { contains: q.replace(/\s/g, '') } },
           { vehicle: { contains: q } },
           { plateNumber: { contains: q } },
+          { trailer: { contains: q } },
+          { trailerNo: { contains: q } },
         ],
       }
     : {};
@@ -112,7 +153,7 @@ function telegramHeader(now = new Date()) {
   const date = `${get('day')}.${get('month')}.${get('year')}`;
   const time = `${get('hour')}:${get('minute')}`;
 
-  return [`📢 <b>Logistika UZ</b>`, `📅 ${date}  🕐 ${time}`, ''].join('\n');
+  return [`📢 <b>OOO "MUSFIRA SAVDO TRANS"</b>`, `📅 ${date}  🕐 ${time}`, ''].join('\n');
 }
 
 @Injectable()
@@ -227,6 +268,8 @@ export class DriversService {
       phone: d.phone,
       vehicle: d.vehicle,
       plateNumber: d.plateNumber,
+      trailer: d.trailer,
+      trailerNo: d.trailerNo,
       passportSeries: d.passportSeries,
       telegramChatId: d.telegramChatId,
       telegramLinkedAt: d.telegramLinkedAt,
@@ -253,6 +296,8 @@ export class DriversService {
         phone,
         vehicle: dto.vehicle?.trim() || null,
         plateNumber: dto.plateNumber?.trim() || null,
+        trailer: dto.trailer?.trim() || null,
+        trailerNo: dto.trailerNo?.trim() || null,
         passportSeries: dto.passportSeries?.trim() || null,
         telegramChatId,
         telegramLinkedAt: telegramChatId ? new Date() : null,
@@ -276,6 +321,9 @@ export class DriversService {
     if (dto.vehicle !== undefined) data.vehicle = dto.vehicle.trim() || null;
     if (dto.plateNumber !== undefined)
       data.plateNumber = dto.plateNumber.trim() || null;
+    if (dto.trailer !== undefined) data.trailer = dto.trailer.trim() || null;
+    if (dto.trailerNo !== undefined)
+      data.trailerNo = dto.trailerNo.trim() || null;
     if (dto.passportSeries !== undefined)
       data.passportSeries = dto.passportSeries.trim() || null;
     if (dto.telegramChatId !== undefined) {
@@ -299,35 +347,86 @@ export class DriversService {
     if (!d) throw new NotFoundException('Haydovchi topilmadi');
   }
 
-  async generateBlanka(id: string) {
-    const { buffer, filename } = await this.buildBlanka(id);
+  async generateBlanka(id: string, dto: DoverennostDto = {}) {
+    const { buffer, filename } = await this.buildBlanka(id, dto);
     const pdf = await docxToPdf(buffer);
     return { buffer: pdf, filename: filename.replace(/\.docx$/i, '.pdf') };
   }
 
-  async generateBlankaDocx(id: string) {
-    return this.buildBlanka(id);
+  async generateBlankaDocx(id: string, dto: DoverennostDto = {}) {
+    return this.buildBlanka(id, dto);
   }
 
-  private async buildBlanka(id: string) {
+  private async buildBlanka(id: string, dto: DoverennostDto = {}) {
     const driver = await this.prisma.driver.findUnique({ where: { id } });
     if (!driver) throw new NotFoundException('Haydovchi topilmadi');
 
-    const textRules = NAME_SOURCES.map((find) => ({
-      find,
-      replace: driver.fullName,
-    }));
-    if (driver.passportSeries) {
+    const fullName = [
+      dto.lastName?.trim(),
+      dto.firstName?.trim(),
+      dto.patronymic?.trim(),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || driver.fullName;
+
+    const textRules: Array<{ find: RegExp; replace: string }> = NAME_SOURCES.map(
+      (find) => ({
+        find,
+        replace: fullName,
+      }),
+    );
+
+    const passport = (dto.passport || driver.passportSeries || '').trim();
+    if (passport) {
       textRules.push({
         find: /F\s*A\s*9316362/g,
-        replace: driver.passportSeries,
+        replace: passport,
       });
     }
 
-    const docx = renderDocx('blanka.docx', textRules);
+    const issued = formatDotDate(dto.passportIssued);
+    if (issued) {
+      textRules.push({ find: /15\.03\.2024/g, replace: issued });
+    }
+
+    const start = formatBlankaDate(dto.startDate);
+    const end = formatBlankaDate(dto.endDate);
+    if (start) {
+      textRules.push({ find: /«\s*09\s*»\s*07\s*\.\s*2026/g, replace: start });
+    }
+    if (end) {
+      textRules.push({ find: /«\s*09\s*»\s*07\s*\.\s*2028/g, replace: end });
+    }
+
+    const no = contractNo(dto.startDate);
+    if (no) {
+      textRules.push({ find: /09\s*\/\s*2026/g, replace: no });
+    }
+
+    // Kompaniya manzili (qora) saqlanadi; haydovchi viloyati (qizil) almashtiriladi
+    const region = dto.region?.trim();
+    const seqRules = region
+      ? [
+          {
+            find: /Ферганская\s*область/g,
+            values: [
+              'Ферганская область',
+              blankaRegionPhrase(region),
+              'Ферганская область',
+              blankaRegionPhrase(region),
+            ],
+          },
+        ]
+      : [];
+
+    const docx = renderDocx('blanka.docx', textRules, seqRules, {
+      forceBlackText: true,
+      stripTrailingEmpty: true,
+    });
     return {
       buffer: docx,
-      filename: this.fileName('Blanka', driver.fullName, 'docx'),
+      filename: this.fileName('Blanka', fullName, 'docx'),
     };
   }
 
@@ -345,9 +444,18 @@ export class DriversService {
     const driver = await this.prisma.driver.findUnique({ where: { id } });
     if (!driver) throw new NotFoundException('Haydovchi topilmadi');
 
+    const fullName = [
+      dto.lastName?.trim(),
+      dto.firstName?.trim(),
+      dto.patronymic?.trim(),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || driver.fullName;
+
     const textRules = NAME_SOURCES.map((find) => ({
       find,
-      replace: driver.fullName,
+      replace: fullName,
     }));
 
     const passport = (dto.passport || driver.passportSeries || '').trim();
@@ -357,13 +465,30 @@ export class DriversService {
         replace: passport,
       });
     }
-    if (driver.vehicle) {
-      textRules.push({ find: /DAF FT XF 40D545RA/g, replace: driver.vehicle });
+
+    const region = dto.region?.trim();
+    if (region) {
+      textRules.push({ find: /Ферганский/g, replace: region });
     }
-    if (driver.plateNumber) {
+
+    if (driver.vehicle?.trim() || driver.plateNumber?.trim()) {
+      const truck = [driver.vehicle?.trim(), driver.plateNumber?.trim()]
+        .filter(Boolean)
+        .join(' ');
+      textRules.push({ find: /DAF FT XF 40D545RA/g, replace: truck });
+    }
+
+    const trailer = driver.trailer?.trim() || null;
+    const trailerNo = driver.trailerNo?.trim() || null;
+    if (trailer && trailerNo) {
       textRules.push({
         find: /KOEGEL\s*40\s*9787AA/g,
-        replace: driver.plateNumber,
+        replace: `${trailer} ${trailerNo}`,
+      });
+    } else if (trailer || trailerNo) {
+      textRules.push({
+        find: /KOEGEL\s*40\s*9787AA/g,
+        replace: (trailer || trailerNo)!,
       });
     }
 
@@ -382,7 +507,7 @@ export class DriversService {
     const docx = renderDocx('doverennost.docx', textRules, seqRules);
     return {
       buffer: docx,
-      filename: this.fileName('Doverennost', driver.fullName, 'docx'),
+      filename: this.fileName('Doverennost', fullName, 'docx'),
     };
   }
 
@@ -441,7 +566,7 @@ export class DriversService {
       ].join('\n');
     }
 
-    const text = [telegramHeader(), body, '', 'Logistika UZ'].join('\n');
+    const text = [telegramHeader(), body, '', 'OOO "MUSFIRA SAVDO TRANS"'].join('\n');
     return this.telegram.sendMessage(driver.telegramChatId, text);
   }
 

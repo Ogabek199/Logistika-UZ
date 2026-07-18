@@ -21,6 +21,8 @@ type DriverDetail = {
   phone: string;
   vehicle: string | null;
   plateNumber: string | null;
+  trailer: string | null;
+  trailerNo: string | null;
   passportSeries: string | null;
   telegramChatId: string | null;
 };
@@ -35,6 +37,8 @@ export default function EditDriverPage() {
     phone: "",
     vehicle: "",
     plateNumber: "",
+    trailer: "",
+    trailerNo: "",
     passportSeries: "",
     telegramChatId: "",
     password: "",
@@ -52,6 +56,8 @@ export default function EditDriverPage() {
           phone: d.phone || "",
           vehicle: d.vehicle || "",
           plateNumber: d.plateNumber || "",
+          trailer: d.trailer || "",
+          trailerNo: d.trailerNo || "",
           passportSeries: d.passportSeries || "",
           telegramChatId: d.telegramChatId || "",
           password: "",
@@ -71,6 +77,8 @@ export default function EditDriverPage() {
         phone: form.phone.trim(),
         vehicle: form.vehicle.trim(),
         plateNumber: form.plateNumber.trim(),
+        trailer: form.trailer.trim(),
+        trailerNo: form.trailerNo.trim(),
         passportSeries: form.passportSeries.trim(),
         telegramChatId: form.telegramChatId.trim(),
       };
@@ -103,7 +111,7 @@ export default function EditDriverPage() {
       ) : (
         <form
           onSubmit={onSubmit}
-          className="space-y-4 rounded-3xl border border-line bg-white p-5 shadow-sm sm:p-6"
+          className="space-y-4 rounded-3xl border border-line bg-paper p-5 shadow-sm sm:p-6"
         >
           {error ? (
             <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger">{error}</p>
@@ -145,6 +153,24 @@ export default function EditDriverPage() {
               />
             </Field>
 
+            <Field icon={<Truck className="h-4 w-4" />} label={t("drivers.trailer")}>
+              <input
+                className="input-field"
+                placeholder="KRONE SD"
+                value={form.trailer}
+                onChange={(e) => setForm((f) => ({ ...f, trailer: e.target.value.toUpperCase() }))}
+              />
+            </Field>
+
+            <Field icon={<IdCard className="h-4 w-4" />} label={t("drivers.trailerNo")}>
+              <input
+                className="input-field"
+                placeholder="402884CA"
+                value={form.trailerNo}
+                onChange={(e) => setForm((f) => ({ ...f, trailerNo: e.target.value }))}
+              />
+            </Field>
+
             <Field icon={<IdCard className="h-4 w-4" />} label={t("drivers.passport")}>
               <input
                 className="input-field"
@@ -177,7 +203,7 @@ export default function EditDriverPage() {
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <Link
               href="/admin/drivers"
-              className="inline-flex min-w-40 items-center justify-center rounded-xl border border-line bg-white px-6 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
+              className="inline-flex min-w-40 items-center justify-center rounded-xl border border-line bg-paper px-6 py-2.5 text-sm font-bold text-ink transition hover:bg-mist"
             >
               {t("common.cancel")}
             </Link>
@@ -210,7 +236,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block rounded-2xl border border-line bg-[#f7fafc] p-3 transition focus-within:border-steel/50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
+    <label className="block rounded-2xl border border-line bg-field p-3 transition focus-within:border-steel/50 focus-within:bg-paper focus-within:shadow-[0_0_0_3px_rgba(47,127,209,0.12)]">
       <span className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
         {icon ? <span className="text-steel">{icon}</span> : null}
         {label}

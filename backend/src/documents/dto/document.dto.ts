@@ -5,7 +5,13 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+
+/** JSON often sends "" for cleared optional dates; treat as absent. */
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (value === '' || value === null) return undefined;
+  return value;
+}
 
 export class CreateDocDto {
   @IsString()
@@ -56,10 +62,12 @@ export class CreateDocDto {
   months?: number;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   startDate?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   endDate?: string;
 
@@ -123,16 +131,23 @@ export class UpdateDocDto {
   months?: number;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   startDate?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   endDate?: string;
 
   @IsOptional()
   @IsString()
   note?: string;
+
+  /** Payment ledger comment only — does not overwrite document.note */
+  @IsOptional()
+  @IsString()
+  paymentNote?: string;
 
   @IsOptional()
   @IsString()
@@ -157,6 +172,7 @@ export class CreateExpenseDto {
   note?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   date?: string;
 }

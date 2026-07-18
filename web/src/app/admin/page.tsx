@@ -191,7 +191,7 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="animate-rise-delay-2 grid gap-4 lg:grid-cols-3">
-        <div className="rounded-3xl border border-line bg-white p-5 shadow-sm lg:col-span-2">
+        <div className="rounded-3xl border border-line bg-paper p-5 shadow-sm lg:col-span-2">
           <div className="mb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
               {t("dashboard.monthlyDynamics")}
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <div className="rounded-3xl border border-line bg-white p-5 shadow-sm">
+        <div className="rounded-3xl border border-line bg-paper p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             {t("dashboard.expiredDocs")}
           </p>
@@ -244,7 +244,7 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="animate-rise-delay-2 grid gap-4 lg:grid-cols-3">
-        <div className="rounded-3xl border border-line bg-white p-5 shadow-sm lg:col-span-1">
+        <div className="rounded-3xl border border-line bg-paper p-5 shadow-sm lg:col-span-1">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             {t("dashboard.finance")}
           </p>
@@ -273,7 +273,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-line bg-white p-5 shadow-sm lg:col-span-2">
+        <div className="rounded-3xl border border-line bg-paper p-5 shadow-sm lg:col-span-2">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -323,7 +323,7 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-line bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-line bg-paper p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
           {t("dashboard.within7Days")}
         </p>
@@ -352,7 +352,7 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-line bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-line bg-paper p-5 shadow-sm">
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             {t("dashboard.allDebtors")}
