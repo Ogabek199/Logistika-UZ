@@ -1,0 +1,8 @@
+{
+  "containerName": "backend",
+  "containerPort": 4000,
+  "healthCheck": {
+    "path": "/api/health",
+    "successCodes": "200-299"
+  }
+}
