@@ -19,7 +19,7 @@ export function BrandLogo({
   full = false,
 }: BrandLogoProps) {
   // Original logo is landscape (~511×362); square mark uses padded contain (no stretch).
-  const width = full ? Math.round(size * (511 / 362)) : size;
+  const width = full ? Math.round(size * (511 / 362)) : size; 
   const height = size;
 
   return (

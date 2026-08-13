@@ -30,7 +30,9 @@ async function main() {
     },
   });
 
-  const existing = await prisma.putyovka.count({ where: { driverId: driver.id } });
+  const existing = await prisma.putyovka.count({
+    where: { driverId: driver.id },
+  });
   if (existing === 0) {
     const start = new Date();
     const end = new Date();
