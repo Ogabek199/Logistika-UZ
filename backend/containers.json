@@ -1,0 +1,17 @@
+{
+  "backend": {
+    "image": ":logistika-api.backend.1",
+    "ports": { "4000": "HTTP" },
+    "environment": {
+      "DATABASE_URL": "postgresql://dbmasteradmin:Logistika2026Pass@YOUR_LIGHTSAIL_DB_ENDPOINT:5432/dbmaster?sslmode=require",
+      "JWT_SECRET": "583L1EFsgiMYXTXhbHkyYOMVG8vEQmjaWSsJ0AOid8lx2VcJgjpW49jp7YMJ2STJ",
+      "JWT_EXPIRES_IN": "7d",
+      "PORT": "4000",
+      "CORS_ORIGIN": "https://SIZNING_HAQIQIY_VERCEL_DOMENINGIZ.vercel.app",
+      "TELEGRAM_BOT_TOKEN": "HAQIQIY_TELEGRAM_BOT_TOKENINGIZ",
+      "TELEGRAM_BOT_USERNAME": "logistikauz_service_bot",
+      "TELEGRAM_WEBHOOK_SECRET": "48333f4e7040a955f79e85321cfffe833179b6787e329dd9a9c05d03f1db1803",
+      "TELEGRAM_WEBHOOK_URL": "https://logistika-api.2z30kkqqxw16t.eu-central-1.cs.amazonlightsail.com/api"
+    }
+  }
+}
