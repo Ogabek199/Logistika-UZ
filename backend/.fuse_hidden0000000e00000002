@@ -1,0 +1,7 @@
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="9Q+joGwA5i7oLyz0f1pmLsEUkB+9uvjGEXar3/K/NByL2D/Nrkzl8/NYuJ8xNMj9"
+JWT_EXPIRES_IN="7d"
+PORT=4000
+CORS_ORIGIN="http://localhost:3000,http://localhost:3001"
+TELEGRAM_BOT_TOKEN="8579006542:AAFj-lPRTn8SL80xS_v7_Y9iFxaDhiVde9o"
+TELEGRAM_BOT_USERNAME="logistikauz_service_bot"

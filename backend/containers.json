@@ -1,9 +1,9 @@
 {
   "backend": {
-    "image": ":logistika-api.backend.1",
+    "image": ":logistika-api.backend.5",
     "ports": { "4000": "HTTP" },
     "environment": {
-      "DATABASE_URL": "postgresql://dbmasteruser:Logistika2026Pass@ls-c4b9f7834ef11c1fa298700692e41cd1715d27fd.cv8i2em201u7.eu-central-1.rds.amazonaws.com:5432/dbmaster?sslmode=require",
+      "DATABASE_URL": "postgresql://dbmasteruser:Logistika2026Pass@ls-c4b9f7834ef11c1fa298700692e41cd1715d27fd.cv8i2em201u7.eu-central-1.rds.amazonaws.com:5432/dbmaster?sslmode=require&connect_timeout=15",
       "JWT_SECRET": "583L1EFsgiMYXTXhbHkyYOMVG8vEQmjaWSsJ0AOid8lx2VcJgjpW49jp7YMJ2STJ",
       "JWT_EXPIRES_IN": "7d",
       "PORT": "4000",

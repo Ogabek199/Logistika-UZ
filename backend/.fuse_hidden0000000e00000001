@@ -1,0 +1,17 @@
+{
+  "backend": {
+    "image": ":logistika-api.backend.1",
+    "ports": { "4000": "HTTP" },
+    "environment": {
+      "DATABASE_URL": "postgresql://dbmasteruser:Logistika2026Pass@ls-c4b9f7834ef11c1fa298700692e41cd1715d27fd.cv8i2em201u7.eu-central-1.rds.amazonaws.com:5432/dbmaster?sslmode=require",
+      "JWT_SECRET": "583L1EFsgiMYXTXhbHkyYOMVG8vEQmjaWSsJ0AOid8lx2VcJgjpW49jp7YMJ2STJ",
+      "JWT_EXPIRES_IN": "7d",
+      "PORT": "4000",
+      "CORS_ORIGIN": "https://logistika-uz.vercel.app",
+      "TELEGRAM_BOT_TOKEN": "8579006542:AAFj-lPRTn8SL80xS_v7_Y9iFxaDhiVde9o",
+      "TELEGRAM_BOT_USERNAME": "logistikauz_service_bot",
+      "TELEGRAM_WEBHOOK_SECRET": "48333f4e7040a955f79e85321cfffe833179b6787e329dd9a9c05d03f1db1803",
+      "TELEGRAM_WEBHOOK_URL": "https://logistika-api.2z30kkqqxw16t.eu-central-1.cs.amazonlightsail.com/api"
+    }
+  }
+}

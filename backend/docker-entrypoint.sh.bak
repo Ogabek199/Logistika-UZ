@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+echo "==> Baza sxemasini sinxronlash (prisma db push)..."
+npx prisma db push --skip-generate
+
+echo "==> API ishga tushmoqda..."
+exec "$@"
