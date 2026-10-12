@@ -5,7 +5,10 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:4000/api";
 
 function unavailableResponse() {
   return NextResponse.json(
@@ -38,10 +41,19 @@ export async function POST(request: Request) {
     return NextResponse.json(payload, { status: res.status });
   }
 
+  const accessToken =
+    typeof payload.accessToken === "string" ? payload.accessToken : "";
+  if (!accessToken) {
+    return NextResponse.json(
+      { message: "Server token qaytarmadi. Qayta urinib ko‘ring." },
+      { status: 502 },
+    );
+  }
+
   const response = NextResponse.json({ user: payload.user });
   response.cookies.set(
     AUTH_COOKIE,
-    payload.accessToken,
+    accessToken,
     sessionCookieOptions(undefined, secure),
   );
   return response;

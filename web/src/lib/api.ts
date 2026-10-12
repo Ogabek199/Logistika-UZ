@@ -142,8 +142,8 @@ export async function login(payload: {
 }
 
 export async function hydrateUser(): Promise<AuthUser> {
-  const cached = getStoredUser();
-  if (cached) return cached;
+  // Always verify with the API — localStorage alone can show a logged-in UI
+  // while the auth cookie/token is missing (every request then returns 401).
   const user = await api<AuthUser>("/auth/me");
   saveSession({ user });
   return user;

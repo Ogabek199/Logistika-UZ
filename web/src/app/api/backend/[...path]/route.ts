@@ -2,7 +2,11 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE } from "@/lib/auth";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+/** Prefer server-only BACKEND_URL; fall back to public URL for local/dev. */
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:4000/api";
 
 function unavailableResponse() {
   return NextResponse.json(
@@ -14,14 +18,31 @@ function unavailableResponse() {
   );
 }
 
+function bearerFromAuthorization(header: string | null): string | null {
+  if (!header) return null;
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+async function resolveAccessToken(request: NextRequest): Promise<string | null> {
+  const fromRequestCookie = request.cookies.get(AUTH_COOKIE)?.value;
+  if (fromRequestCookie) return fromRequestCookie;
+
+  const fromStore = (await cookies()).get(AUTH_COOKIE)?.value;
+  if (fromStore) return fromStore;
+
+  // Upstream proxies (e.g. Vercel → VPS Next) forward Bearer, not the browser cookie.
+  return bearerFromAuthorization(request.headers.get("Authorization"));
+}
+
 async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await context.params;
-  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const token = await resolveAccessToken(request);
 
-  const target = new URL(`${BACKEND_URL}/${path.join("/")}`);
+  const target = new URL(`${BACKEND_URL.replace(/\/$/, "")}/${path.join("/")}`);
   target.search = request.nextUrl.search;
 
   const headers = new Headers();
